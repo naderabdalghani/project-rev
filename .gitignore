@@ -148,3 +148,5 @@ crashlytics-build.properties
 fabric.properties
 
 # Project Custom
+cache/
+output/
