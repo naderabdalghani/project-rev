@@ -1,0 +1,6 @@
+requests~=2.25.1
+beautifulsoup4~=4.9.3
+Flask~=1.1.2
+flask-socketio~=5.0.1
+eventlet~=0.30.2
+torch~=1.8.1+cpu
