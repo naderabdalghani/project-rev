@@ -1,13 +1,13 @@
 # General
 CHATBOT_NAME = 'Ted'
+OUTPUT_DIR = '../output'
+CACHE_DIR = '../cache'
 
 # Core module
-OUTPUT_DIR = '../output'
 MODEL_TYPE = 'gpt2'
 MODEL_NAME_OR_PATH = 'microsoft/DialoGPT-small'
 CONFIG_NAME = 'microsoft/DialoGPT-small'
 TOKENIZER_NAME = 'microsoft/DialoGPT-small'
-CACHE_DIR = '../cache'
 BLOCK_SIZE = 512
 DO_TRAIN = True
 DO_EVAL = True
