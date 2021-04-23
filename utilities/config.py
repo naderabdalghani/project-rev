@@ -1,6 +1,3 @@
-# General
-CHATBOT_NAME = 'Ted'
-
 # Core module
 OUTPUT_DIR = '../output'
 MODEL_TYPE = 'gpt2'
@@ -34,7 +31,11 @@ SEED = 42
 LOCAL_RANK = -1
 FP16 = False
 FP16_OPT_LEVEL = 'O1'
-SPECIAL_TOKENS_DICT = {'character_token': 'Ted:', 'user_token': 'Person:'}
+BOT_TOKEN = '<|bot|>'
+USER_TOKEN = '<|user|>'
+SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN, USER_TOKEN]}
+DIALOGUE_SIZE = 10
+DATASET_FILENAME = 'dataset.txt'
 
 # Flask
 DEBUG = True
