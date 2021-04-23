@@ -1,8 +1,10 @@
+import os
+
 import pandas as pd
 from transformers import AutoTokenizer
 
 from preprocessing import ConversationDataset
-from utilities.config import TOKENIZER_NAME, CACHE_DIR
+from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR
 
 
 def get_response(user_utterance):
@@ -10,8 +12,9 @@ def get_response(user_utterance):
 
 
 if __name__ == '__main__':
-    df = pd.read_csv('../output/final_es_conv.csv')
-    df = df.dropna()
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
-    dataset = ConversationDataset(tokenizer, df)
-    x = 5
+    tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
+    dataset = ConversationDataset(tokenizer)
+
+
+
