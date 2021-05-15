@@ -1,3 +1,4 @@
+import logging
 # Core module
 OUTPUT_DIR = '../output'
 MODEL_TYPE = 'gpt2'
@@ -36,6 +37,12 @@ USER_TOKEN = '<|user|>'
 SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN, USER_TOKEN]}
 DIALOGUE_SIZE = 10
 DATASET_FILENAME = 'dataset.txt'
+# Logging
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    level=logging.INFO if LOCAL_RANK in [-1, 0] else logging.WARN,
+)
 
 # Flask
 DEBUG = True
