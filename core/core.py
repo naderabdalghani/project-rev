@@ -21,50 +21,31 @@ chat_history_ids = torch.Tensor().type(torch.int64)
 
 
 class ModelNotTrained(Exception):
-    pass
+    def __init__(self, msg="No saved instances of the model and the tokenizer were found. Please make sure"
+                           "the model is trained and saved.", *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
 
 
 def get_bot_response_as_text(user_utterance):
     global saved_instance_path, loaded_model, loaded_tokenizer, chat_history_ids
     if saved_instance_path is None:
-        # saved_instance_path = get_most_recent_saved_instance_path()
-        saved_instance_path = "test"
+        saved_instance_path = get_most_recent_saved_instance_path()
         if saved_instance_path is None:
-            raise ModelNotTrained("No saved instances of the model and the tokenizer were found. Please make sure"
-                                  "the model is trained and saved.")
+            raise ModelNotTrained()
     if loaded_model is None or loaded_tokenizer is None:
-        # loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
-        loaded_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
-        # loaded_tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
+        loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
 
-        model_config = AutoConfig.from_pretrained(MODEL_CONFIG_NAME, cache_dir=CACHE_DIR)
-        # model_config.pad_token_id = loaded_tokenizer.pad_token_id
+    new_user_input_ids = loaded_tokenizer.encode(user_utterance, return_tensors='pt')
 
-        loaded_model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
-                                                            cache_dir=CACHE_DIR)
-        # loaded_model.resize_token_embeddings(len(loaded_tokenizer))
-        loaded_model.to(DEVICE)
+    if len(chat_history_ids) != 0:
+        chat_history_ids = torch.cat([chat_history_ids, torch.tensor([loaded_tokenizer.bos_token_id]).unsqueeze(1),
+                                      new_user_input_ids], dim=-1)
+    else:
+        chat_history_ids = new_user_input_ids
 
-    # new_user_input_ids = loaded_tokenizer.encode(USER_TOKEN + ' ' + user_utterance + loaded_tokenizer.eos_token,
-    #                                              return_tensors='pt')
-    new_user_input_ids = loaded_tokenizer.encode(user_utterance + loaded_tokenizer.eos_token, return_tensors='pt')
-
-    # append the new user input tokens to the chat history
-    bot_input_ids = torch.cat([chat_history_ids, new_user_input_ids], dim=-1)
-
-    # generated a response while limiting the total chat history to 1000 tokens,
-    chat_history_ids = loaded_model.generate(
-        bot_input_ids,
-        do_sample=True,
-        max_length=1000,
-        top_k=50,
-        top_p=0.95,
-        pad_token_id=loaded_tokenizer.eos_token_id
-    )
-
-    # chat_history_ids = loaded_model.generate(bot_input_ids, max_length=1000, pad_token_id=tokenizer.eos_token_id)
-
-    return loaded_tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+    bot_response_ids = loaded_model.generate(chat_history_ids, do_sample=True, max_length=1000, top_k=50, top_p=0.95)
+    chat_history_ids = torch.cat([chat_history_ids, bot_response_ids], dim=-1)
+    return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
 
 def load_saved_instance(path):
