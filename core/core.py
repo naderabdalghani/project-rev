@@ -6,12 +6,11 @@ import re
 import torch
 from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
-
 from .train import train, evaluate
 from .preprocessing import ConversationDataset
 from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
-    SAVED_INSTANCE_PREFIX
+    SAVED_INSTANCE_PREFIX, BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -43,7 +42,8 @@ def get_bot_response_as_text(user_utterance):
     else:
         chat_history_ids = new_user_input_ids
 
-    bot_response_ids = loaded_model.generate(chat_history_ids, do_sample=True, max_length=1000, top_k=50, top_p=0.95)
+    bot_response_ids = loaded_model.generate(chat_history_ids,
+                                             decoder_start_token_id=loaded_tokenizer.convert_tokens_to_ids(BOT_TOKEN))
     chat_history_ids = torch.cat([chat_history_ids, bot_response_ids], dim=-1)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
@@ -87,17 +87,16 @@ def main():
         tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
 
         model_config = BlenderbotConfig.from_pretrained(MODEL_CONFIG_NAME, cache_dir=CACHE_DIR)
-        model_config.pad_token_id = tokenizer.pad_token_id
 
         model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
                                                                    cache_dir=CACHE_DIR)
         model.resize_token_embeddings(len(tokenizer))
         model.to(DEVICE)
 
-    dataset = ConversationDataset(tokenizer)
-    datasets_lengths = [len(dataset) - int(len(dataset) * EVAL_DATA_SPLIT_RATIO),
-                        int(len(dataset) * EVAL_DATA_SPLIT_RATIO)]
-    train_dataset, eval_dataset = random_split(dataset, datasets_lengths)
+        dataset = ConversationDataset(tokenizer)
+        datasets_lengths = [len(dataset) - int(len(dataset) * EVAL_DATA_SPLIT_RATIO),
+                            int(len(dataset) * EVAL_DATA_SPLIT_RATIO)]
+        train_dataset, eval_dataset = random_split(dataset, datasets_lengths)
 
     if LOCAL_RANK == 0:
         torch.distributed.barrier()

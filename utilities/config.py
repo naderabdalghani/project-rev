@@ -2,8 +2,8 @@ import torch
 import logging
 
 # Core module
-OUTPUT_DIR = '.\output'  # Relative to the main file (app entry script)
-CACHE_DIR = '.\cache'  # Relative to the main file (app entry script)
+OUTPUT_DIR = '.\output'  # Relative to the main file (entry script)
+CACHE_DIR = '.\cache'  # Relative to the main file (entry script)
 MODEL_TYPE = 'blenderbot'
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
 MODEL_CONFIG_NAME = 'facebook/blenderbot-400M-distill'
@@ -41,10 +41,9 @@ EVAL_BATCH_SIZE = PER_GPU_EVAL_BATCH_SIZE * max(1, N_GPUS)
 FP16 = False  # Whether to use 16-bit (mixed) precision training through NVIDIA apex
 FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']
 # See details at https://nvidia.github.io/apex/amp.html"
-BOT_TOKEN = '<|bot|>'
+BOT_TOKEN = '<bot>'
 BOT_NAME = 'Ted'
-PADDING_TOKEN = '<|pad|>'
-SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN, USER_TOKEN], 'pad_token': PADDING_TOKEN}
+SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN]}
 DIALOGUE_SIZE = 10
 DATASET_FILENAME = 'dataset.txt'
 NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
