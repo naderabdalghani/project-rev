@@ -4,10 +4,10 @@ import logging
 # Core module
 OUTPUT_DIR = '.\output'  # Relative to the main file (app entry script)
 CACHE_DIR = '.\cache'  # Relative to the main file (app entry script)
-MODEL_TYPE = 'gpt2'
-MODEL_NAME = 'microsoft/DialoGPT-small'
-MODEL_CONFIG_NAME = 'microsoft/DialoGPT-small'
-TOKENIZER_NAME = 'microsoft/DialoGPT-small'
+MODEL_TYPE = 'blenderbot'
+MODEL_NAME = 'facebook/blenderbot-400M-distill'
+MODEL_CONFIG_NAME = 'facebook/blenderbot-400M-distill'
+TOKENIZER_NAME = 'facebook/blenderbot-400M-distill'
 DO_TRAIN = True
 DO_EVAL = True
 EVALUATE_DURING_TRAINING = False

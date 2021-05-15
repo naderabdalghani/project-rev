@@ -5,13 +5,13 @@ import re
 
 import torch
 from torch.utils.data import random_split
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
+from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
 
 from .train import train, evaluate
 from .preprocessing import ConversationDataset
 from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
-    SAVED_INSTANCE_PREFIX, USER_TOKEN
+    SAVED_INSTANCE_PREFIX
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -68,9 +68,9 @@ def get_bot_response_as_text(user_utterance):
 
 
 def load_saved_instance(path):
-    model_config = AutoConfig.from_pretrained(path)
-    model = AutoModelForCausalLM.from_pretrained(path, config=model_config)
-    tokenizer = AutoTokenizer.from_pretrained(path)
+    model_config = BlenderbotConfig.from_pretrained(path)
+    model = BlenderbotForConditionalGeneration.from_pretrained(path, config=model_config).to(DEVICE)
+    tokenizer = BlenderbotTokenizer.from_pretrained(path)
     return model, tokenizer
 
 
@@ -102,14 +102,14 @@ def main():
     global saved_instance_path
     saved_instance_path = get_most_recent_saved_instance_path()
     if DO_TRAIN or (DO_EVAL and saved_instance_path is None):
-        tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
+        tokenizer = BlenderbotTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
         tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
 
-        model_config = AutoConfig.from_pretrained(MODEL_CONFIG_NAME, cache_dir=CACHE_DIR)
+        model_config = BlenderbotConfig.from_pretrained(MODEL_CONFIG_NAME, cache_dir=CACHE_DIR)
         model_config.pad_token_id = tokenizer.pad_token_id
 
-        model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
-                                                     cache_dir=CACHE_DIR)
+        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
+                                                                   cache_dir=CACHE_DIR)
         model.resize_token_embeddings(len(tokenizer))
         model.to(DEVICE)
 
