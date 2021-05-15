@@ -14,6 +14,7 @@ EVALUATE_DURING_TRAINING = False
 PER_GPU_TRAIN_BATCH_SIZE = 4
 PER_GPU_EVAL_BATCH_SIZE = 4
 NUM_BATCHES_TILL_GRADIENT_ACCUMULATION = 1
+EVAL_DATA_SPLIT_RATIO = 0.15
 LEARNING_RATE = 5e-5
 WEIGHT_DECAY = 0.0
 ADAM_EPSILON = 1e-8
@@ -21,11 +22,11 @@ MAX_GRAD_NORM = 1.0
 NUM_TRAIN_EPOCHS = 3
 MAX_STEPS = -1  # If > 0, sets total number of training steps to perform. Overrides NUM_TRAIN_EPOCHS
 WARMUP_STEPS = 0
-LOGGING_STEPS = 1000
-SAVE_STEPS = 3500
+LOGGING_STEPS = 2
+SAVE_STEPS = 2
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
 OVERWRITE_OUTPUT_DIR = True
-OVERWRITE_CACHE = True
+OVERWRITE_CACHE = False
 LOCAL_RANK = -1  # Distributed training local rank of process. -1 implies no distributed training
 CUDA = torch.cuda.is_available()
 if LOCAL_RANK != -1:
@@ -42,9 +43,16 @@ FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in [
 # See details at https://nvidia.github.io/apex/amp.html"
 BOT_TOKEN = '<|bot|>'
 USER_TOKEN = '<|user|>'
-SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN, USER_TOKEN]}
+PADDING_TOKEN = '<|pad|>'
+SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN, USER_TOKEN], 'pad_token': PADDING_TOKEN}
 DIALOGUE_SIZE = 10
 DATASET_FILENAME = 'dataset.txt'
+NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
+CHECKPOINT_PREFIX = "checkpoint"
+SAVED_INSTANCE_PREFIX = "saved"
+LOSS_FN_IGNORE_INDEX = -100  # A target label value that is ignored by the model loss function and does not
+# contribute to the input gradient
+
 # Logging
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
