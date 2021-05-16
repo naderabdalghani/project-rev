@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class ConversationDataset(Dataset):
     def __init__(self, tokenizer):
         block_size = tokenizer.model_max_length
-        cached_features_file = os.path.join(CACHE_DIR, MODEL_TYPE + "_cached_lm_" + str(block_size))
+        cached_features_file = os.path.join(CACHE_DIR, MODEL_TYPE + "_cached_features_" + str(block_size))
         if os.path.exists(cached_features_file) and not OVERWRITE_CACHE:
             logger.info("Loading features from cached file {}".format(cached_features_file))
             with open(cached_features_file, "rb") as cached_file:
