@@ -25,7 +25,6 @@ WARMUP_STEPS = 0
 LOGGING_STEPS = 2
 SAVE_STEPS = 2
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
-OVERWRITE_OUTPUT_DIR = True
 OVERWRITE_CACHE = False
 LOCAL_RANK = -1  # Distributed training local rank of process. -1 implies no distributed training
 CUDA = torch.cuda.is_available()
