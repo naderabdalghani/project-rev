@@ -42,6 +42,7 @@ FP16 = False  # Whether to use 16-bit (mixed) precision training through NVIDIA 
 FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']
 # See details at https://nvidia.github.io/apex/amp.html"
 BOT_TOKEN = '<bot>'
+USER_TOKEN = '<s>'
 BOT_NAME = 'Ted'
 SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN]}
 DIALOGUE_SIZE = 10
