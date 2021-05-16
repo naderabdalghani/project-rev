@@ -74,7 +74,7 @@ def get_most_recent_saved_instance_path(use_mtime=False):
 
 
 def main():
-    logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
+    logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bit training: %s",
                    LOCAL_RANK, DEVICE, N_GPUS, bool(LOCAL_RANK != -1), FP16)
 
     if LOCAL_RANK not in [-1, 0]:
