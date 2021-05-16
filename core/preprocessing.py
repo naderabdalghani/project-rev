@@ -24,6 +24,7 @@ class ConversationDataset(Dataset):
                 file_content = f.readlines()
                 for i in range(0, len(file_content), DIALOGUE_SIZE):
                     dialogue = file_content[i:min(i+DIALOGUE_SIZE, len(file_content))]
+                    dialogue[0] = dialogue[0].removeprefix('<s>')
                     tokenized_dialogue = [tokenizer.encode(line, truncation=True) for line in dialogue]
                     tokenized_dialogue = [token for line in tokenized_dialogue for token in line]
                     if len(tokenized_dialogue) > block_size:
