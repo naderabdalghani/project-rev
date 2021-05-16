@@ -24,10 +24,11 @@ class ConversationDataset(Dataset):
                 file_content = f.readlines()
                 for i in range(0, len(file_content), DIALOGUE_SIZE):
                     dialogue = file_content[i:min(i+DIALOGUE_SIZE, len(file_content))]
-                    tokenized_dialogue = [tokenizer.encode(line) + [tokenizer.eos_token_id] for line in dialogue]
+                    tokenized_dialogue = [tokenizer.encode(line, truncation=True) for line in dialogue]
+                    tokenized_dialogue = [token for line in tokenized_dialogue for token in line]
                     if len(tokenized_dialogue) > block_size:
                         continue
-                    self.dialogues.append([token for line in tokenized_dialogue for token in line])
+                    self.dialogues.append(tokenized_dialogue)
             logger.info("Saving features into cached file {}".format(cached_features_file))
             with open(cached_features_file, "wb") as handle:
                 pickle.dump(self.dialogues, handle, protocol=pickle.HIGHEST_PROTOCOL)
