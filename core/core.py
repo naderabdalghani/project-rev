@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 saved_instance_path = None
 loaded_model = None
 loaded_tokenizer = None
-chat_history_ids = torch.Tensor().type(torch.int64)
+chat_history = []
 
 
 class ModelNotTrained(Exception):
@@ -25,8 +25,23 @@ class ModelNotTrained(Exception):
         super().__init__(msg, *args, **kwargs)
 
 
+def update_chat_history(tokenizer, new_input_ids, from_bot=False):
+    global chat_history
+    if len(chat_history) != 0 and not from_bot:
+        chat_history.append(torch.cat([torch.tensor(tokenizer.encode(tokenizer.bos_token, add_special_tokens=False))
+                                      .unsqueeze(1).T, new_input_ids], dim=1))
+        flattened_chat_history = torch.cat(chat_history, dim=1)
+        while flattened_chat_history.shape[1] > tokenizer.model_max_length:
+            chat_history.pop(0)
+            flattened_chat_history = torch.cat(chat_history, dim=1)
+        return flattened_chat_history
+    else:
+        chat_history.append(new_input_ids)
+        return new_input_ids
+
+
 def get_bot_response_as_text(user_utterance):
-    global saved_instance_path, loaded_model, loaded_tokenizer, chat_history_ids
+    global saved_instance_path, loaded_model, loaded_tokenizer, chat_history
     if saved_instance_path is None:
         saved_instance_path = get_most_recent_saved_instance_path()
         if saved_instance_path is None:
@@ -34,17 +49,13 @@ def get_bot_response_as_text(user_utterance):
     if loaded_model is None or loaded_tokenizer is None:
         loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
 
-    new_user_input_ids = loaded_tokenizer.encode(user_utterance, return_tensors='pt')
+    new_user_input_ids = loaded_tokenizer.encode(user_utterance, truncation=True, return_tensors='pt')
 
-    if len(chat_history_ids) != 0:
-        chat_history_ids = torch.cat([chat_history_ids, torch.tensor([loaded_tokenizer.bos_token_id]).unsqueeze(1),
-                                      new_user_input_ids], dim=-1)
-    else:
-        chat_history_ids = new_user_input_ids
+    flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
 
-    bot_response_ids = loaded_model.generate(chat_history_ids,
+    bot_response_ids = loaded_model.generate(flattened_chat_history,
                                              decoder_start_token_id=loaded_tokenizer.convert_tokens_to_ids(BOT_TOKEN))
-    chat_history_ids = torch.cat([chat_history_ids, bot_response_ids], dim=-1)
+    update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
 
