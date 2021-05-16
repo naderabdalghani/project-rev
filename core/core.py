@@ -6,8 +6,8 @@ import re
 import torch
 from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
-from .train import train, evaluate
-from .preprocessing import ConversationDataset
+from train import train, evaluate
+from preprocessing import ConversationDataset
 from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
     SAVED_INSTANCE_PREFIX, BOT_TOKEN
@@ -81,7 +81,9 @@ def get_most_recent_saved_instance_path(use_mtime=False):
             if regex_match and regex_match.groups():
                 saved_instances.append((int(regex_match.groups()[1]), path))
 
-    return sorted(saved_instances, reverse=True)[0][1]
+    if use_mtime:
+        return sorted(saved_instances, reverse=True)[0][1]
+    return sorted(saved_instances)[0][1]
 
 
 def main():
@@ -113,7 +115,7 @@ def main():
         torch.distributed.barrier()
 
     if DO_TRAIN:
-        total_number_of_steps, training_loss = train(train_dataset, eval_dataset, model, tokenizer)
+        total_number_of_steps, training_loss, model = train(train_dataset, eval_dataset, model, tokenizer)
         logger.info("Number of steps = %s, Average training loss = %s", total_number_of_steps, training_loss)
 
         if LOCAL_RANK == -1 or torch.distributed.get_rank() == 0:
@@ -131,8 +133,12 @@ def main():
         if saved_instance_path is not None:
             model, tokenizer = load_saved_instance(saved_instance_path)
         result = evaluate(eval_dataset, model, tokenizer)
-        for key in result.keys():
-            logger.info("%s = %s", key, str(result[key]))
+        output_eval_file = os.path.join(OUTPUT_DIR, "evaluation_result.txt")
+        with open(output_eval_file, "w") as writer:
+            logger.info("***** Evaluation Result *****")
+            for key in result.keys():
+                logger.info("%s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
 
 
 if __name__ == '__main__':
