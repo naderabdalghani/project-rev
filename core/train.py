@@ -13,7 +13,7 @@ try:
 except ImportError:
     from tensorboardX import SummaryWriter
 from tqdm import trange, tqdm
-from transformers import get_linear_schedule_with_warmup, AdamW, AutoConfig, AutoModelForCausalLM
+from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotConfig, BlenderbotForConditionalGeneration
 
 from utilities.config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
     LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, FP16, N_GPUS, LOCAL_RANK, \
@@ -77,7 +77,7 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     if N_GPUS > 1:
         model = torch.nn.DataParallel(model)
 
-    logger.info("***** Running Evaluation {} *****".format(prefix))
+    logger.info("***** Running Evaluation *****")
     logger.info("Number of dialogues = %d", len(dataset))
     logger.info("Batch size = %d", EVAL_BATCH_SIZE)
 
@@ -85,7 +85,7 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     eval_steps = 0
     model.eval()
 
-    for batch in tqdm(eval_dataloader, desc="Evaluating", leave=True, position=0):
+    for batch in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0):
         inputs = batch.detach().clone().to(DEVICE)
         labels = batch.detach().clone().to(DEVICE)
 
@@ -100,16 +100,7 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     eval_loss = eval_loss / eval_steps
     perplexity = torch.exp(torch.tensor(eval_loss))
 
-    result = {"perplexity": perplexity}
-
-    output_eval_file = os.path.join(OUTPUT_DIR, prefix, "evaluation_result.txt")
-    with open(output_eval_file, "w") as writer:
-        logger.info("***** Evaluation Result {} *****".format(prefix))
-        for key in result.keys():
-            logger.info("%s = %s", key, str(result[key]))
-            writer.write("%s = %s\n" % (key, str(result[key])))
-
-    return result
+    return {"perplexity": perplexity.item()}
 
 
 def train(train_dataset, eval_dataset, model, tokenizer):
@@ -169,8 +160,8 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             optimizer.load_state_dict(torch.load(os.path.join(checkpoint_path, "optimizer.pt")))
             scheduler.load_state_dict(torch.load(os.path.join(checkpoint_path, "scheduler.pt")))
             logger.info("Loading saved model and its config from checkpoint path %s", checkpoint_path)
-            model_config = AutoConfig.from_pretrained(checkpoint_path)
-            model = AutoModelForCausalLM.from_pretrained(checkpoint_path, config=model_config)
+            model_config = BlenderbotConfig.from_pretrained(checkpoint_path)
+            model = BlenderbotForConditionalGeneration.from_pretrained(checkpoint_path, config=model_config)
             logger.info("Continuing training from checkpoint, will skip to saved global_step")
             logger.info("Continuing training from epoch %d", epochs_trained)
             logger.info("Continuing training from global step %d", global_step)
@@ -285,4 +276,4 @@ def train(train_dataset, eval_dataset, model, tokenizer):
     if LOCAL_RANK in [-1, 0]:
         tb_writer.close()
 
-    return global_step, training_loss / global_step
+    return global_step, training_loss / global_step, model
