@@ -103,8 +103,8 @@ class AudioGenerator:
 
     def featurize(self, audio_clip):
         """ For a given audio clip, calculate the corresponding feature
-        :param: audio_clip: (str) Path to the audio clip
-        :returns: Spectrogram or MFCC
+            :param: audio_clip: (str) Path to the audio clip
+            :returns: Spectrogram or MFCC
         """
         if self.spectrogram:
             return spectrogram_from_file(
@@ -116,7 +116,22 @@ class AudioGenerator:
 
     def normalize(self, feature, eps=1e-14):
         """ Center a feature using the mean and std
-        :param: feature: (numpy.ndarray) Feature to normalize
-        :returns: The normalized features
+            :param: feature: (numpy.ndarray) Feature to normalize
+            :returns: The normalized features
         """
         return (feature - self.feats_mean) / (self.feats_std + eps)
+
+
+def shuffle_data(audio_paths, durations, texts):
+    """ Shuffle the data (called after making a complete pass through
+        training or validation data during the training process)
+        :param: audio_paths: (list) Paths to audio clips
+        :param: durations: (list) Durations of utterances for each audio clip
+        :param: texts: (list) Sentences uttered in each audio clip
+        :returns: Shuffled data with paths, duration and texts
+    """
+    p = np.random.permutation(len(audio_paths))
+    audio_paths = [audio_paths[i] for i in p]
+    durations = [durations[i] for i in p]
+    texts = [texts[i] for i in p]
+    return audio_paths, durations, texts
