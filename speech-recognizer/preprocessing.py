@@ -100,3 +100,18 @@ class AudioGenerator:
                   'label_length': label_length
                   }
         return inputs, outputs
+
+    def featurize(self, audio_clip):
+        """ For a given audio clip, calculate the corresponding feature
+        :param: audio_clip: (str) Path to the audio clip
+        :returns: Spectrogram or MFCC
+        """
+        if self.spectrogram:
+            return spectrogram_from_file(
+                audio_clip, step=self.step, window=self.window,
+                max_freq=self.max_freq)
+        else:
+            (rate, sig) = wav.read(audio_clip)
+            return mfcc(sig, rate, numcep=self.mfcc_dim)
+
+    
