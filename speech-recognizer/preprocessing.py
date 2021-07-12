@@ -121,6 +121,22 @@ class AudioGenerator:
         """
         return (feature - self.feats_mean) / (self.feats_std + eps)
 
+    def shuffle_data_by_partition(self, partition):
+        """ Shuffle the training or validation data
+        :param: partition: (str) train or valid
+        :raises: Exception if the partition was not train/valid
+        :returns: Shuffled validation or training datasets
+        """
+        if partition == 'train':
+            self.train_audio_paths, self.train_durations, self.train_texts = shuffle_data(
+                self.train_audio_paths, self.train_durations, self.train_texts)
+        elif partition == 'valid':
+            self.valid_audio_paths, self.valid_durations, self.valid_texts = shuffle_data(
+                self.valid_audio_paths, self.valid_durations, self.valid_texts)
+        else:
+            raise Exception("Invalid partition. "
+                            "Must be train/validation")
+
 
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
