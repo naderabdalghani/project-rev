@@ -151,3 +151,17 @@ def shuffle_data(audio_paths, durations, texts):
     durations = [durations[i] for i in p]
     texts = [texts[i] for i in p]
     return audio_paths, durations, texts
+
+
+def sort_data(audio_paths, durations, texts):
+    """ Sort the data by duration
+        :param: audio_paths: (list) Paths to audio clips
+        :param: durations: (list) Durations of utterances for each audio clip
+        :param: texts: (list) Sentences uttered in each audio clip
+        :returns: Sorted data with paths, duration and texts
+    """
+    p = np.argsort(durations).tolist()
+    audio_paths = [audio_paths[i] for i in p]
+    durations = [durations[i] for i in p]
+    texts = [texts[i] for i in p]
+    return audio_paths, durations, texts
