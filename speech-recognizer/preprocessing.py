@@ -125,13 +125,29 @@ class AudioGenerator:
         """ Shuffle the training or validation data
         :param: partition: (str) train or valid
         :raises: Exception if the partition was not train/valid
-        :returns: Shuffled validation or training datasets
+        :returns: None
         """
         if partition == 'train':
             self.train_audio_paths, self.train_durations, self.train_texts = shuffle_data(
                 self.train_audio_paths, self.train_durations, self.train_texts)
         elif partition == 'valid':
             self.valid_audio_paths, self.valid_durations, self.valid_texts = shuffle_data(
+                self.valid_audio_paths, self.valid_durations, self.valid_texts)
+        else:
+            raise Exception("Invalid partition. "
+                            "Must be train/validation")
+
+    def sort_data_by_duration(self, partition):
+        """ Sort the training or validation sets by (increasing) duration
+            :param: partition: (str) train or valid
+            :raises: Exception if the partition was not train/valid
+            :returns: None
+        """
+        if partition == 'train':
+            self.train_audio_paths, self.train_durations, self.train_texts = sort_data(
+                self.train_audio_paths, self.train_durations, self.train_texts)
+        elif partition == 'valid':
+            self.valid_audio_paths, self.valid_durations, self.valid_texts = sort_data(
                 self.valid_audio_paths, self.valid_durations, self.valid_texts)
         else:
             raise Exception("Invalid partition. "
