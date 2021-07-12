@@ -114,4 +114,9 @@ class AudioGenerator:
             (rate, sig) = wav.read(audio_clip)
             return mfcc(sig, rate, numcep=self.mfcc_dim)
 
-    
+    def normalize(self, feature, eps=1e-14):
+        """ Center a feature using the mean and std
+        :param: feature: (numpy.ndarray) Feature to normalize
+        :returns: The normalized features
+        """
+        return (feature - self.feats_mean) / (self.feats_std + eps)
