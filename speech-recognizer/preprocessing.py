@@ -178,6 +178,17 @@ class AudioGenerator:
                 self.shuffle_data_by_partition('valid')
             yield ret
 
+    def next_test(self):
+        """ Obtain a batch of test data
+            :returns: Batch of testing data
+        """
+        while True:
+            ret = self.get_batch('test')
+            self.cur_test_index += self.minibatch_size
+            if self.cur_test_index >= len(self.test_texts) - self.minibatch_size:
+                self.cur_test_index = 0
+            yield ret
+
 
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
