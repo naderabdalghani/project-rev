@@ -81,26 +81,32 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     logger.info("Number of dialogues = %d", len(dataset))
     logger.info("Batch size = %d", EVAL_BATCH_SIZE)
 
-    eval_loss = 0.0
-    eval_steps = 0
     model.eval()
+
+    max_length = tokenizer.model_max_length
+    stride = max_length
+    perplexities = []
 
     for batch in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0):
         inputs = batch.detach().clone().to(DEVICE)
-        labels = batch.detach().clone().to(DEVICE)
+        end_loc = inputs.size(1)
+        lls = []
+        for i in tqdm(range(0, inputs.size(1), stride)):
+            begin_loc = max(i + stride - max_length, 0)
+            end_loc = min(i + stride, inputs.size(1))
+            target_len = end_loc - i
+            inputs = inputs[:, begin_loc:end_loc].to(DEVICE)
+            labels = inputs.detach().clone().to(DEVICE)
+            labels[:, :-target_len] = LOSS_FN_IGNORE_INDEX
 
-        labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
+            with torch.no_grad():
+                outputs = model(inputs, labels=labels)
+                log_likelihood = outputs[0] * target_len
+            lls.append(log_likelihood)
 
-        with torch.no_grad():
-            outputs = model(inputs, labels=labels)
-            loss = outputs[0]
-            eval_loss += loss.mean().item()
-        eval_steps += 1
+        perplexities.append(torch.exp(torch.stack(lls).sum() / end_loc))
 
-    eval_loss = eval_loss / eval_steps
-    perplexity = torch.exp(torch.tensor(eval_loss))
-
-    return {"perplexity": perplexity.item()}
+    return {"perplexity": (sum(perplexities) / len(perplexities)).item()}
 
 
 def train(train_dataset, eval_dataset, model, tokenizer):
