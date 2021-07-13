@@ -201,11 +201,11 @@ def train(train_dataset, eval_dataset, model, tokenizer):
 
     training_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
-    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epoch", disable=LOCAL_RANK not in [-1, 0], leave=True,
+    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", disable=LOCAL_RANK not in [-1, 0], leave=True,
                     position=0)
 
     for _ in epochs:
-        data_iterator = tqdm(train_dataloader, desc="Iteration", disable=LOCAL_RANK not in [-1, 0], leave=True,
+        data_iterator = tqdm(train_dataloader, desc="Epoch", disable=LOCAL_RANK not in [-1, 0], leave=True,
                              position=1)
         for step, batch in enumerate(data_iterator):
 
