@@ -165,7 +165,18 @@ class AudioGenerator:
                 self.cur_train_index = 0
                 self.shuffle_data_by_partition('train')
             yield ret
-            
+
+    def next_valid(self):
+        """ Obtain a batch of validation data
+            :returns: Batch of validation data
+        """
+        while True:
+            ret = self.get_batch('valid')
+            self.cur_valid_index += self.minibatch_size
+            if self.cur_valid_index >= len(self.valid_texts) - self.minibatch_size:
+                self.cur_valid_index = 0
+                self.shuffle_data_by_partition('valid')
+            yield ret
 
 
 def shuffle_data(audio_paths, durations, texts):
