@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import random
+import librosa
 from python_speech_features import mfcc
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
@@ -152,6 +153,19 @@ class AudioGenerator:
         else:
             raise Exception("Invalid partition. "
                             "Must be train/validation")
+
+    def next_train(self):
+        """ Obtain a batch of training data
+            :returns: Batch of training data
+        """
+        while True:
+            ret = self.get_batch('train')
+            self.cur_train_index += self.minibatch_size
+            if self.cur_train_index >= len(self.train_texts) - self.minibatch_size:
+                self.cur_train_index = 0
+                self.shuffle_data_by_partition('train')
+            yield ret
+            
 
 
 def shuffle_data(audio_paths, durations, texts):
