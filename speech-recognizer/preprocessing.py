@@ -203,6 +203,42 @@ class AudioGenerator:
     def load_test_data(self, desc_file='test.json'):
         self.load_metadata_from_desc_file(desc_file, 'test')
 
+    def load_metadata_from_desc_file(self, desc_file, partition):
+        """ Read metadata from a JSON file, sets paths, duration, texts based on partition
+            :param: desc_file (str):  Path to a JSON-line file that contains labels and
+                paths to the audio files
+            :param: partition (str): One of 'train', 'validation' or 'test'
+            :raises: Exception if it can not read a line or a file
+        """
+        audio_paths, durations, texts = [], [], []
+        with open(desc_file) as json_line_file:
+            for line_num, json_line in enumerate(json_line_file):
+                try:
+                    spec = json.loads(json_line)
+                    if float(spec['duration']) > self.max_duration:
+                        continue
+                    audio_paths.append(spec['key'])
+                    durations.append(float(spec['duration']))
+                    texts.append(spec['text'])
+                except Exception as e:
+                    print('Error reading line #{}: {}'
+                          .format(line_num, json_line))
+        if partition == 'train':
+            self.train_audio_paths = audio_paths
+            self.train_durations = durations
+            self.train_texts = texts
+        elif partition == 'validation':
+            self.valid_audio_paths = audio_paths
+            self.valid_durations = durations
+            self.valid_texts = texts
+        elif partition == 'test':
+            self.test_audio_paths = audio_paths
+            self.test_durations = durations
+            self.test_texts = texts
+        else:
+            raise Exception("Invalid partition to load metadata. "
+                            "Must be train/validation/test")
+
 
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
