@@ -6,17 +6,18 @@ import re
 import torch
 from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
-from train import train, evaluate
-from preprocessing import ConversationDataset
+from .train import train, evaluate
+from .preprocessing import ConversationDataset
 from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
-    SAVED_INSTANCE_PREFIX, BOT_TOKEN
+    SAVED_INSTANCE_PREFIX, BOT_TOKEN, BAD_WORDS
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
 loaded_model = None
 loaded_tokenizer = None
 chat_history = []
+bad_words_ids = []
 
 
 class ModelNotTrained(Exception):
@@ -53,16 +54,22 @@ def get_bot_response_as_text(user_utterance):
 
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
 
+    # bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids,
+    #                                          decoder_start_token_id=loaded_tokenizer.
+    #                                          convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
     bot_response_ids = loaded_model.generate(flattened_chat_history,
-                                             decoder_start_token_id=loaded_tokenizer.convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
+                                             decoder_start_token_id=loaded_tokenizer.
+                                             convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
 
 def load_saved_instance(path):
+    global bad_words_ids
     model_config = BlenderbotConfig.from_pretrained(path)
     model = BlenderbotForConditionalGeneration.from_pretrained(path, config=model_config).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(path)
+    bad_words_ids = [tokenizer(bad_word, add_prefix_space=True).input_ids for bad_word in BAD_WORDS]
     return model, tokenizer
 
 
