@@ -44,7 +44,7 @@ def update_chat_history(tokenizer, new_input_ids, from_bot=False):
 def get_bot_response_as_text(user_utterance):
     global saved_instance_path, loaded_model, loaded_tokenizer, chat_history
     if saved_instance_path is None:
-        saved_instance_path = get_most_recent_saved_instance_path()
+        saved_instance_path = get_saved_instance_path()
         if saved_instance_path is None:
             raise ModelNotTrained()
     if loaded_model is None or loaded_tokenizer is None:
@@ -73,7 +73,7 @@ def load_saved_instance(path):
     return model, tokenizer
 
 
-def get_most_recent_saved_instance_path(use_mtime=False):
+def get_saved_instance_path(use_mtime=False):
     saved_instances = []
 
     saved_instances_paths = glob.glob(os.path.join(OUTPUT_DIR, "{}-*".format(SAVED_INSTANCE_PREFIX)))
@@ -101,7 +101,7 @@ def main():
         torch.distributed.barrier()
 
     global saved_instance_path
-    saved_instance_path = get_most_recent_saved_instance_path()
+    saved_instance_path = get_saved_instance_path()
     if DO_TRAIN or (DO_EVAL and saved_instance_path is None):
         tokenizer = BlenderbotTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
         tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
