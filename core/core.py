@@ -10,7 +10,7 @@ from .train import train, evaluate
 from .preprocessing import ConversationDataset
 from utilities.config import TOKENIZER_NAME, CACHE_DIR, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
-    SAVED_INSTANCE_PREFIX, BOT_TOKEN, BAD_WORDS
+    SAVED_INSTANCE_PREFIX, BAD_WORDS
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -54,9 +54,7 @@ def get_bot_response_as_text(user_utterance):
 
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
 
-    # bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids,
-    #                                          decoder_start_token_id=loaded_tokenizer.
-    #                                          convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
+    # bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE)
     bot_response_ids = loaded_model.generate(flattened_chat_history).to(DEVICE)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
