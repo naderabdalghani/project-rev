@@ -65,7 +65,8 @@ def load_saved_instance(path):
     model_config = BlenderbotConfig.from_pretrained(path)
     model = BlenderbotForConditionalGeneration.from_pretrained(path, config=model_config).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(path)
-    bad_words_ids = [tokenizer(bad_word, add_prefix_space=True).input_ids for bad_word in BAD_WORDS]
+    bad_words_ids = [tokenizer(bad_word, add_prefix_space=True, add_special_tokens=False).input_ids
+                     for bad_word in BAD_WORDS]
     return model, tokenizer
 
 
