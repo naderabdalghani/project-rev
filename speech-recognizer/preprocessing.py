@@ -200,6 +200,9 @@ class AudioGenerator:
         if self.sort_by_duration:
             self.sort_data_by_duration('valid')
 
+    def load_test_data(self, desc_file='test.json'):
+        self.load_metadata_from_desc_file(desc_file, 'test')
+
 
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
