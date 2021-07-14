@@ -267,3 +267,28 @@ def sort_data(audio_paths, durations, texts):
     durations = [durations[i] for i in p]
     texts = [texts[i] for i in p]
     return audio_paths, durations, texts
+
+
+def vis_train_features(index=0):
+    """ Visualizing the data point in the training set at the supplied index
+        :param: index: (int) Index of data to be visualized
+        :returns: vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
+    """
+    # Obtain spectrogram
+    audio_gen = AudioGenerator(spectrogram=True)
+    audio_gen.load_train_data()
+    vis_audio_path = audio_gen.train_audio_paths[index]
+    vis_spectrogram_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
+    # Obtain mfcc
+    audio_gen = AudioGenerator(spectrogram=False)
+    audio_gen.load_train_data()
+    vis_mfcc_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
+    # Obtain text label
+    vis_text = audio_gen.train_texts[index]
+    # Obtain raw audio
+    vis_raw_audio, _ = librosa.load(vis_audio_path)
+    # Print total number of training examples
+    print('There are %d total training examples.' % len(audio_gen.train_audio_paths))
+    # Return labels for plotting
+    return vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
+
