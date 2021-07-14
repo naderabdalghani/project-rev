@@ -117,6 +117,7 @@ class AudioGenerator:
 
     def normalize(self, feature, eps=1e-14):
         """ Center a feature using the mean and std
+            :param eps: (float) Small float number to avoid divide by zero
             :param feature: (numpy.ndarray) Feature to normalize
             :returns: The normalized features
         """
@@ -205,9 +206,9 @@ class AudioGenerator:
 
     def load_metadata_from_desc_file(self, desc_file, partition):
         """ Read metadata from a JSON file, sets paths, duration, texts based on partition
-            :param desc_file (str):  Path to a JSON-line file that contains labels and
+            :param desc_file: (str) Path to a JSON-line file that contains labels and
                 paths to the audio files
-            :param partition (str): One of 'train', 'validation' or 'test'
+            :param partition: (str) One of 'train', 'validation' or 'test'
             :raises: Exception if it can not read a line or a file
         """
         audio_paths, durations, texts = [], [], []
