@@ -109,7 +109,6 @@ def main():
 
         model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
                                                                    cache_dir=CACHE_DIR)
-        model.resize_token_embeddings(len(tokenizer))
         model.to(DEVICE)
 
         dataset = ConversationDataset(tokenizer)
