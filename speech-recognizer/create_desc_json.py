@@ -6,7 +6,6 @@ import json
 import random
 import csv
 from pydub import AudioSegment
-from mutagen.mp3 import MP3
 
 FILE_PATH = '../../Common Voice Dataset/validate.tsv'  # Contains file path of validate.tsv
 JSON_PATH = '../../Common Voice Dataset'  # Contains directory for json files
@@ -30,8 +29,7 @@ def main(args):
             file_name_mp3 = row['path']
             file_name_wav = file_name_mp3.rpartition('.')[0] + ".wav"
             text = row['sentence']
-            audio = MP3(directory + "/clips/" + file_name_mp3)
-            duration = audio.info.length
+            duration = row['duration']
             if args.convert:
                 data.append({
                     "key": directory + "/clips/" + file_name_wav,
