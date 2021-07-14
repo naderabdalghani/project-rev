@@ -1,4 +1,5 @@
-""" Utility script to convert common voice into wav and create the training, validation and test json files for.
+""" Utility script to convert common voice into wav and create the training, validation and testing json files for.
+    This file is run once only to get the converted data
 """
 import argparse
 import json
@@ -13,7 +14,8 @@ JSON_PATH = '../../Common Voice Dataset'  # Contains directory for json files
 def main(args):
     data = []
     directory = args.file_path.rpartition('/')[0]
-    percent = args.percent
+    valid_percent = args.valid_percent
+    test_percent = args.test_percent
 
     with open(args.file_path, encoding="utf8") as f:
         length = sum(1 for line in f)
@@ -51,21 +53,31 @@ def main(args):
     random.shuffle(data)
     print("creating JSON's")
     f = open(args.save_json_path + "/" + "train.json", "w")
-
     with open(args.save_json_path + "/" + 'train.json', 'w') as f:
         d = len(data)
         i = 0
-        while i < int(d - d / percent):
+        train_end = int(d - ((d * (test_percent // 100)) + (d * (valid_percent // 100))))
+        while i < train_end:
+            r = data[i]
+            line = json.dumps(r)
+            f.write(line + "\n")
+            i = i + 1
+
+    f = open(args.save_json_path + "/" + "valid.json", "w")
+    with open(args.save_json_path + "/" + 'valid.json', 'w') as f:
+        d = len(data)
+        i = int(d - ((d * (test_percent // 100)) + (d * (valid_percent // 100))))
+        valid_end = int(d - (d * (test_percent // 100)))
+        while i < valid_end:
             r = data[i]
             line = json.dumps(r)
             f.write(line + "\n")
             i = i + 1
 
     f = open(args.save_json_path + "/" + "test.json", "w")
-
     with open(args.save_json_path + "/" + 'test.json', 'w') as f:
         d = len(data)
-        i = int(d - d / percent)
+        i = int(d - (d * (test_percent // 100)))
         while i < d:
             r = data[i]
             line = json.dumps(r)
@@ -76,13 +88,15 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
-    Utility script to convert common voice into wav and create the training and test json files. """
+    Utility script to convert common voice into wav and create the training, validation and test json files. """
                                      )
     parser.add_argument('--file_path', type=str, default=FILE_PATH,
                         help='path to one of the .tsv files found in cv-corpus')
     parser.add_argument('--save_json_path', type=str, default=JSON_PATH,
                         help='path to the dir where the json files are supposed to be saved')
-    parser.add_argument('--percent', type=int, default=10, required=False,
+    parser.add_argument('--valid_percent', type=int, default=10, required=False,
+                        help='percent of clips put into valid.json instead of train.json')
+    parser.add_argument('--test_percent', type=int, default=10, required=False,
                         help='percent of clips put into test.json instead of train.json')
     parser.add_argument('--convert', default=True, action='store_true',
                         help='says that the script should convert mp3 to wav')
