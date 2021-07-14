@@ -8,7 +8,7 @@ from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
 from .train import train, evaluate
 from .preprocessing import ConversationDataset
-from utilities.config import TOKENIZER_NAME, CACHE_DIR, SPECIAL_TOKENS_DICT, OUTPUT_DIR, MODEL_NAME, \
+from utilities.config import TOKENIZER_NAME, CACHE_DIR, OUTPUT_DIR, MODEL_NAME, \
     MODEL_CONFIG_NAME, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, \
     SAVED_INSTANCE_PREFIX, BOT_TOKEN, BAD_WORDS
 
@@ -104,7 +104,6 @@ def main():
     saved_instance_path = get_saved_instance_path()
     if DO_TRAIN or (DO_EVAL and saved_instance_path is None):
         tokenizer = BlenderbotTokenizer.from_pretrained(TOKENIZER_NAME, cache_dir=CACHE_DIR)
-        tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
 
         model_config = BlenderbotConfig.from_pretrained(MODEL_CONFIG_NAME, cache_dir=CACHE_DIR)
 

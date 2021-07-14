@@ -44,7 +44,6 @@ BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
 BOT_NAME = 'Ted'
 BAD_WORDS = ["sex", "bastard", "vagina", "fucking", "fuck", "fucked", "motherfucker", "bitch", "dick"]
-SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN]}
 DIALOGUE_SIZE = 5
 DATASET_FILENAME = 'dataset.txt'
 NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
