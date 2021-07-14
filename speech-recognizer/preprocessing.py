@@ -104,7 +104,7 @@ class AudioGenerator:
 
     def featurize(self, audio_clip):
         """ For a given audio clip, calculate the corresponding feature
-            :param: audio_clip: (str) Path to the audio clip
+            :param audio_clip: (str) Path to the audio clip
             :returns: Spectrogram or MFCC
         """
         if self.spectrogram:
@@ -117,14 +117,14 @@ class AudioGenerator:
 
     def normalize(self, feature, eps=1e-14):
         """ Center a feature using the mean and std
-            :param: feature: (numpy.ndarray) Feature to normalize
+            :param feature: (numpy.ndarray) Feature to normalize
             :returns: The normalized features
         """
         return (feature - self.feats_mean) / (self.feats_std + eps)
 
     def shuffle_data_by_partition(self, partition):
         """ Shuffle the training or validation data
-        :param: partition: (str) train or valid
+        :param partition: (str) train or valid
         :raises: Exception if the partition was not train/valid
         :returns: None
         """
@@ -140,7 +140,7 @@ class AudioGenerator:
 
     def sort_data_by_duration(self, partition):
         """ Sort the training or validation sets by (increasing) duration
-            :param: partition: (str) train or valid
+            :param partition: (str) train or valid
             :raises: Exception if the partition was not train/valid
             :returns: None
         """
@@ -205,9 +205,9 @@ class AudioGenerator:
 
     def load_metadata_from_desc_file(self, desc_file, partition):
         """ Read metadata from a JSON file, sets paths, duration, texts based on partition
-            :param: desc_file (str):  Path to a JSON-line file that contains labels and
+            :param desc_file (str):  Path to a JSON-line file that contains labels and
                 paths to the audio files
-            :param: partition (str): One of 'train', 'validation' or 'test'
+            :param partition (str): One of 'train', 'validation' or 'test'
             :raises: Exception if it can not read a line or a file
         """
         audio_paths, durations, texts = [], [], []
@@ -243,9 +243,9 @@ class AudioGenerator:
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
         training or validation data during the training process)
-        :param: audio_paths: (list) Paths to audio clips
-        :param: durations: (list) Durations of utterances for each audio clip
-        :param: texts: (list) Sentences uttered in each audio clip
+        :param audio_paths: (list) Paths to audio clips
+        :param durations: (list) Durations of utterances for each audio clip
+        :param texts: (list) Sentences uttered in each audio clip
         :returns: Shuffled data with paths, duration and texts
     """
     p = np.random.permutation(len(audio_paths))
@@ -257,9 +257,9 @@ def shuffle_data(audio_paths, durations, texts):
 
 def sort_data(audio_paths, durations, texts):
     """ Sort the data by duration
-        :param: audio_paths: (list) Paths to audio clips
-        :param: durations: (list) Durations of utterances for each audio clip
-        :param: texts: (list) Sentences uttered in each audio clip
+        :param audio_paths: (list) Paths to audio clips
+        :param durations: (list) Durations of utterances for each audio clip
+        :param texts: (list) Sentences uttered in each audio clip
         :returns: Sorted data with paths, duration and texts
     """
     p = np.argsort(durations).tolist()
@@ -271,7 +271,7 @@ def sort_data(audio_paths, durations, texts):
 
 def vis_train_features(index=0):
     """ Visualizing the data point in the training set at the supplied index
-        :param: index: (int) Index of data to be visualized
+        :param index: (int) Index of data to be visualized
         :returns: vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
     """
     # Obtain spectrogram
@@ -292,3 +292,17 @@ def vis_train_features(index=0):
     # Return labels for plotting
     return vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
 
+
+def plot_raw_audio(vis_raw_audio):
+    """ Visualize audio in a wave form
+    :param vis_raw_audio: Audio data to be plotted
+    """
+    # plot the raw audio signal
+    fig = plt.figure(figsize=(12, 3))
+    ax = fig.add_subplot(111)
+    steps = len(vis_raw_audio)
+    ax.plot(np.linspace(1, steps, steps), vis_raw_audio)
+    plt.title('Audio Signal')
+    plt.xlabel('Time')
+    plt.ylabel('Amplitude')
+    plt.show()
