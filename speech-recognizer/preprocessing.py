@@ -310,9 +310,7 @@ def plot_raw_audio(vis_raw_audio):
 def plot_mfcc_feature(vis_mfcc_feature):
     """ Plot mfcc feature of the audio
     :param vis_mfcc_feature: MFCC of the audio
-    :return:
     """
-    # plot the MFCC feature
     fig = plt.figure(figsize=(12,5))
     ax = fig.add_subplot(111)
     im = ax.imshow(vis_mfcc_feature, cmap=plt.cm.jet, aspect='auto')
@@ -323,4 +321,20 @@ def plot_mfcc_feature(vis_mfcc_feature):
     cax = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im, cax=cax)
     ax.set_xticks(np.arange(0, 13, 2), minor=False);
+    plt.show()
+
+
+def plot_spectrogram_feature(vis_spectrogram_feature):
+    """ Plot the normalized spectrogram
+    :param vis_spectrogram_feature: spectrogram of the audio
+    """
+    fig = plt.figure(figsize=(12,5))
+    ax = fig.add_subplot(111)
+    im = ax.imshow(vis_spectrogram_feature, cmap=plt.cm.jet, aspect='auto')
+    plt.title('Normalized Spectrogram')
+    plt.ylabel('Time')
+    plt.xlabel('Frequency')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
     plt.show()
