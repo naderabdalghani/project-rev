@@ -32,7 +32,7 @@ class ConversationDataset(Dataset):
                             bot_response = file_content[j].removeprefix(BOT_TOKEN).strip()
                             k = j + 1
                             while k < len(file_content) and file_content[k].startswith(BOT_TOKEN):
-                                bot_response += ' ' + file_content[k].replace(BOT_TOKEN, '').strip()
+                                bot_response += ' ' + file_content[k].removeprefix(BOT_TOKEN).strip()
                                 k += 1
                             self.utterances.append(tokenizer.encode(file_content[j - 1]
                                                                     .removeprefix(tokenizer.bos_token).strip(),

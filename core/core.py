@@ -57,9 +57,7 @@ def get_bot_response_as_text(user_utterance):
     # bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids,
     #                                          decoder_start_token_id=loaded_tokenizer.
     #                                          convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
-    bot_response_ids = loaded_model.generate(flattened_chat_history,
-                                             decoder_start_token_id=loaded_tokenizer.
-                                             convert_tokens_to_ids(BOT_TOKEN)).to(DEVICE)
+    bot_response_ids = loaded_model.generate(flattened_chat_history).to(DEVICE)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 

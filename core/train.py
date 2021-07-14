@@ -93,7 +93,7 @@ def evaluate(dataset, model, tokenizer, prefix=""):
         inputs = inputs.detach().clone().to(DEVICE)
         end_loc = inputs.size(1)
         lls = []
-        for i in tqdm(range(0, inputs.size(1), stride)):
+        for i in range(0, inputs.size(1), stride):
             begin_loc = max(i + stride - max_length, 0)
             end_loc = min(i + stride, inputs.size(1))
             target_len = end_loc - i
