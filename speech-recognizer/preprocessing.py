@@ -160,8 +160,8 @@ class AudioGenerator:
         """
         while True:
             ret = self.get_batch('train')
-            self.cur_train_index += self.minibatch_size
-            if self.cur_train_index >= len(self.train_texts) - self.minibatch_size:
+            self.cur_train_index += self.minimum_batch_size
+            if self.cur_train_index >= len(self.train_texts) - self.minimum_batch_size:
                 self.cur_train_index = 0
                 self.shuffle_data_by_partition('train')
             yield ret
@@ -172,8 +172,8 @@ class AudioGenerator:
         """
         while True:
             ret = self.get_batch('valid')
-            self.cur_valid_index += self.minibatch_size
-            if self.cur_valid_index >= len(self.valid_texts) - self.minibatch_size:
+            self.cur_valid_index += self.minimum_batch_size
+            if self.cur_valid_index >= len(self.valid_texts) - self.minimum_batch_size:
                 self.cur_valid_index = 0
                 self.shuffle_data_by_partition('valid')
             yield ret
@@ -184,10 +184,16 @@ class AudioGenerator:
         """
         while True:
             ret = self.get_batch('test')
-            self.cur_test_index += self.minibatch_size
-            if self.cur_test_index >= len(self.test_texts) - self.minibatch_size:
+            self.cur_test_index += self.minimum_batch_size
+            if self.cur_test_index >= len(self.test_texts) - self.minimum_batch_size:
                 self.cur_test_index = 0
             yield ret
+
+    def load_train_data(self, desc_file='train.json'):
+        self.load_metadata_from_desc_file(desc_file, 'train')
+        self.fit_train()
+        if self.sort_by_duration:
+            self.sort_data_by_duration('train')
 
 
 def shuffle_data(audio_paths, durations, texts):
