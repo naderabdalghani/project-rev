@@ -11,6 +11,7 @@ from mutagen.mp3 import MP3
 FILE_PATH = '../../Common Voice Dataset/validate.tsv'  # Contains file path of validate.tsv
 JSON_PATH = '../../Common Voice Dataset'  # Contains directory for json files
 
+
 def main(args):
     data = []
     directory = args.file_path.rpartition('/')[0]
@@ -51,6 +52,7 @@ def main(args):
                 })
 
     random.shuffle(data)
+
     print("creating JSON's")
     f = open(args.save_json_path + "/" + "train.json", "w")
     with open(args.save_json_path + "/" + 'train.json', 'w') as f:
@@ -86,6 +88,7 @@ def main(args):
     print("Done!")
 
 
+# TODO: Multithreading
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
     Utility script to convert common voice into wav and create the training, validation and test json files. """
