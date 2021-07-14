@@ -43,6 +43,7 @@ FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in [
 BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
 BOT_NAME = 'Ted'
+BAD_WORDS = ["sex", "bastard", "vagina", "fucking", "fuck", "fucked", "motherfucker", "bitch", "dick"]
 SPECIAL_TOKENS_DICT = {'additional_special_tokens': [BOT_TOKEN]}
 DIALOGUE_SIZE = 5
 DATASET_FILENAME = 'dataset.txt'
