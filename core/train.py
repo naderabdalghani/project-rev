@@ -68,8 +68,10 @@ def evaluate(dataset, model, tokenizer, prefix=""):
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
-            return pad_sequence(dialogues, batch_first=True)
-        return pad_sequence(dialogues, batch_first=True, padding_value=tokenizer.pad_token_id)
+            return pad_sequence([x for x, _ in dialogues], batch_first=True), \
+                   pad_sequence([y for _, y in dialogues], batch_first=True)
+        return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
+               pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = SequentialSampler(dataset) if LOCAL_RANK == -1 else DistributedSampler(dataset)
     eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=EVAL_BATCH_SIZE, collate_fn=collate)
@@ -87,8 +89,8 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     stride = max_length
     perplexities = []
 
-    for batch in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0):
-        inputs = batch.detach().clone().to(DEVICE)
+    for (inputs, labels) in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0):
+        inputs = inputs.detach().clone().to(DEVICE)
         end_loc = inputs.size(1)
         lls = []
         for i in tqdm(range(0, inputs.size(1), stride)):
@@ -116,8 +118,10 @@ def train(train_dataset, eval_dataset, model, tokenizer):
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
-            return pad_sequence(dialogues, batch_first=True)
-        return pad_sequence(dialogues, batch_first=True, padding_value=tokenizer.pad_token_id)
+            return pad_sequence([x for x, _ in dialogues], batch_first=True), \
+                   pad_sequence([y for _, y in dialogues], batch_first=True)
+        return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
+               pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = RandomSampler(train_dataset) if LOCAL_RANK == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate)
@@ -211,19 +215,18 @@ def train(train_dataset, eval_dataset, model, tokenizer):
                     position=0)
 
     for _ in epochs:
-        data_iterator = tqdm(train_dataloader, desc="Epoch", disable=LOCAL_RANK not in [-1, 0], leave=True,
-                             position=1)
-        for step, batch in enumerate(data_iterator):
+        data_iterator = tqdm(train_dataloader, desc="Epoch", disable=LOCAL_RANK not in [-1, 0], leave=True, position=1)
+        for step, (inputs, labels) in enumerate(data_iterator):
 
             if steps_trained_in_current_epoch > 0:
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            if batch.shape[1] > tokenizer.model_max_length:
+            if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
                 continue
 
-            inputs = batch.detach().clone().to(DEVICE)
-            labels = batch.detach().clone().to(DEVICE)
+            inputs = inputs.detach().clone().to(DEVICE)
+            labels = labels.detach().clone().to(DEVICE)
 
             labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
             model.train()

@@ -3,8 +3,7 @@ import os
 import pickle
 import torch
 from torch.utils.data import Dataset
-from utilities.config import CACHE_DIR, MODEL_TYPE, OVERWRITE_CACHE, DATASET_FILENAME, OUTPUT_DIR, DIALOGUE_SIZE
-
+from utilities.config import CACHE_DIR, MODEL_TYPE, OVERWRITE_CACHE, DATASET_FILENAME, OUTPUT_DIR, BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -16,26 +15,39 @@ class ConversationDataset(Dataset):
         if os.path.exists(cached_features_file) and not OVERWRITE_CACHE:
             logger.info("Loading features from cached file {}".format(cached_features_file))
             with open(cached_features_file, "rb") as cached_file:
-                self.dialogues = pickle.load(cached_file)
+                self.utterances, self.responses = pickle.load(cached_file)
         else:
             logger.info("Creating features from dataset file at {}".format(CACHE_DIR))
-            self.dialogues = []
+            self.utterances = []
+            self.responses = []
             with open(os.path.join(OUTPUT_DIR, DATASET_FILENAME)) as f:
                 file_content = f.readlines()
-                for i in range(0, len(file_content), DIALOGUE_SIZE):
-                    dialogue = file_content[i:min(i+DIALOGUE_SIZE, len(file_content))]
-                    dialogue[0] = dialogue[0].removeprefix('<s>')
-                    tokenized_dialogue = [tokenizer.encode(line, truncation=True) for line in dialogue]
-                    tokenized_dialogue = [token for line in tokenized_dialogue for token in line]
-                    if len(tokenized_dialogue) > block_size:
-                        continue
-                    self.dialogues.append(tokenized_dialogue)
+                i = 0
+                while i < len(file_content):
+                    if file_content[i].startswith(tokenizer.bos_token):
+                        j = i
+                        while j < len(file_content) and file_content[j].startswith(tokenizer.bos_token):
+                            j += 1
+                        if j < len(file_content):
+                            bot_response = file_content[j].removeprefix(BOT_TOKEN).strip()
+                            k = j + 1
+                            while k < len(file_content) and file_content[k].startswith(BOT_TOKEN):
+                                bot_response += ' ' + file_content[k].replace(BOT_TOKEN, '').strip()
+                                k += 1
+                            self.utterances.append(tokenizer.encode(file_content[j - 1]
+                                                                    .removeprefix(tokenizer.bos_token).strip(),
+                                                                    truncation=True))
+                            self.responses.append(tokenizer.encode(bot_response, truncation=True))
+                            i = k
+                            continue
+                    i += 1
             logger.info("Saving features into cached file {}".format(cached_features_file))
             with open(cached_features_file, "wb") as handle:
-                pickle.dump(self.dialogues, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump((self.utterances, self.responses), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def __len__(self):
-        return len(self.dialogues)
+        return len(self.utterances)
 
-    def __getitem__(self, item):
-        return torch.tensor(self.dialogues[item], dtype=torch.long)
+    def __getitem__(self, index):
+        return torch.tensor(self.utterances[index], dtype=torch.long), \
+               torch.tensor(self.responses[index], dtype=torch.long)
