@@ -101,3 +101,13 @@ def spectrogram_from_file(filename, step=10, window=20, max_freq=None,
     return np.transpose(np.log(pxx[:ind, :] + eps))
 
 
+def text_to_int_sequence(text):
+    """ Convert text to an integer sequence """
+    int_sequence = []
+    for c in text:
+        if c == ' ':
+            ch = char_map['<SPACE>']
+        else:
+            ch = char_map[c]
+        int_sequence.append(ch)
+    return int_sequence
