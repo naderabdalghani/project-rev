@@ -297,7 +297,6 @@ def plot_raw_audio(vis_raw_audio):
     """ Visualize audio in a wave form
     :param vis_raw_audio: Audio data to be plotted
     """
-    # plot the raw audio signal
     fig = plt.figure(figsize=(12, 3))
     ax = fig.add_subplot(111)
     steps = len(vis_raw_audio)
@@ -305,4 +304,23 @@ def plot_raw_audio(vis_raw_audio):
     plt.title('Audio Signal')
     plt.xlabel('Time')
     plt.ylabel('Amplitude')
+    plt.show()
+
+
+def plot_mfcc_feature(vis_mfcc_feature):
+    """ Plot mfcc feature of the audio
+    :param vis_mfcc_feature: MFCC of the audio
+    :return:
+    """
+    # plot the MFCC feature
+    fig = plt.figure(figsize=(12,5))
+    ax = fig.add_subplot(111)
+    im = ax.imshow(vis_mfcc_feature, cmap=plt.cm.jet, aspect='auto')
+    plt.title('Normalized MFCC')
+    plt.ylabel('Time')
+    plt.xlabel('MFCC Coefficient')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+    ax.set_xticks(np.arange(0, 13, 2), minor=False);
     plt.show()
