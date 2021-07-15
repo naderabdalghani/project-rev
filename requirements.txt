@@ -12,3 +12,5 @@ python_speech_features
 utils~=1.0.1
 librosa~=0.8.1
 mutagen~=1.45.1
+pydub~=0.25.1
+tqdm~=4.61.2
