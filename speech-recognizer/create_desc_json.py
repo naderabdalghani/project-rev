@@ -3,7 +3,6 @@
 """
 import threading
 import json
-import random
 import csv
 from tqdm import tqdm
 from pydub import AudioSegment
@@ -111,7 +110,6 @@ def convert(lock, reader_list, convert=True, file_path=FILE_PATH):
     print(threading.currentThread().name + ": Converting Done!")
 
 
-# TODO: Multithreading
 if __name__ == "__main__":
     '''
     parser = argparse.ArgumentParser(description="""
