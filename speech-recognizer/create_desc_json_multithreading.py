@@ -16,7 +16,6 @@ NUM_OF_THREADS = 5
 def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=JSON_PATH):
     global data
     data = []
-    directory = file_path.rpartition('/')[0]
     valid_percent = valid_percent
     test_percent = test_percent
     lock = threading.Lock()
@@ -26,11 +25,11 @@ def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=
     with open(file_path, newline='', encoding="utf8") as csv_file:
         reader = csv.DictReader(csv_file, delimiter='\t')
         reader_list = list(reader)
-        index = 1
         if convert:
             print(str(length) + " files found")
         thread_len = length // NUM_OF_THREADS
         threads = []
+        # Create multiple threads with number equals to NUM_OF_THREADS
         for t in range(NUM_OF_THREADS):
             start_idx = t * thread_len
             end_idx = (t+1) * thread_len
@@ -87,6 +86,7 @@ def convert(lock, reader_list, convert=True, file_path=FILE_PATH):
         audio = MP3(directory + "/clips/" + file_name_mp3)
         duration = audio.info.length
         if convert:
+            # Lock data before writing in it
             lock.acquire()
             data.append({
                 "key": directory + "/clips/" + file_name_wav,
@@ -94,6 +94,7 @@ def convert(lock, reader_list, convert=True, file_path=FILE_PATH):
                 "text": text
             })
             lock.release()
+            # Release after appending
             src = directory + "/clips/" + file_name_mp3
             dst = directory + "/clips_wav/" + file_name_wav
             sound = AudioSegment.from_mp3(src)

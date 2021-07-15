@@ -16,7 +16,6 @@ NUM_OF_PROCESSES = 30
 def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=JSON_PATH):
     global data
     data = []
-    directory = file_path.rpartition('/')[0]
     valid_percent = valid_percent
     test_percent = test_percent
     with open(file_path, encoding="utf8") as f:
@@ -25,12 +24,12 @@ def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=
     with open(file_path, newline='', encoding="utf8") as csv_file:
         reader = csv.DictReader(csv_file, delimiter='\t')
         reader_list = list(reader)
-        index = 1
         if convert:
             print(str(length) + " files found")
         argument_len = length // NUM_OF_PROCESSES
         arguments = []
 
+        # Split data to be run over multi processes
         for p in range(NUM_OF_PROCESSES):
             start_idx = p * argument_len
             end_idx = (p + 1) * argument_len
@@ -38,6 +37,7 @@ def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=
                 end_idx = length
             arguments.append(reader_list[start_idx:end_idx])
 
+        # Run data with process equals to number of processes
         with multiprocessing.Pool(NUM_OF_PROCESSES) as p:
             for result in p.imap_unordered(convert, arguments):
                 data += result
@@ -80,7 +80,6 @@ def convert(reader_list, convert=True, file_path=FILE_PATH):
     data = []
     directory = file_path.rpartition('/')[0]
     process_name = multiprocessing.current_process().name
-    process_id = int(process_name.split('-', 1)[1]) - 1
     for row in tqdm(reader_list, desc=process_name, leave=True, position=0):
         file_name_mp3 = row['path']
         file_name_wav = file_name_mp3.rpartition('.')[0] + ".wav"
