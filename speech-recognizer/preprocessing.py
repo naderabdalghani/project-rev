@@ -240,6 +240,17 @@ class AudioGenerator:
             raise Exception("Invalid partition to load metadata. "
                             "Must be train/validation/test")
 
+    def fit_train(self, k_samples=100):
+        """ Estimate the mean and std of the features from the training set
+            :param k_samples: (int) Use this number of samples for estimation
+        """
+        k_samples = min(k_samples, len(self.train_audio_paths))
+        samples = self.rng.sample(self.train_audio_paths, k_samples)
+        feats = [self.featurize(s) for s in samples]
+        feats = np.vstack(feats)
+        self.feats_mean = np.mean(feats, axis=0)
+        self.feats_std = np.std(feats, axis=0)
+
 
 def shuffle_data(audio_paths, durations, texts):
     """ Shuffle the data (called after making a complete pass through
