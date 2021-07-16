@@ -33,7 +33,7 @@ x 25
 y 26
 z 27
 """
-# The "blank" character is mapped to 28
+# The "blank" character is mapped to <SPACE>
 
 char_map = {}
 index_map = {}
