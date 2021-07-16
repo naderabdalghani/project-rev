@@ -113,7 +113,7 @@ class AudioGenerator:
                 max_freq=self.max_freq)
         else:
             (rate, sig) = wav.read(audio_clip)
-            return mfcc(sig, rate, numcep=self.mfcc_dim)
+            return mfcc(sig, rate, nfft=1200, numcep=self.mfcc_dim)
 
     def normalize(self, feature, eps=1e-14):
         """ Center a feature using the mean and std
@@ -340,7 +340,7 @@ def plot_spectrogram_feature(vis_spectrogram_feature):
     """ Plot the normalized spectrogram
     :param vis_spectrogram_feature: spectrogram of the audio
     """
-    fig = plt.figure(figsize=(12,5))
+    fig = plt.figure(figsize=(12, 5))
     ax = fig.add_subplot(111)
     im = ax.imshow(vis_spectrogram_feature, cmap=plt.cm.jet, aspect='auto')
     plt.title('Normalized Spectrogram')
