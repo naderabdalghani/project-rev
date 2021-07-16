@@ -103,12 +103,13 @@ def spectrogram_from_file(filename, step=10, window=20, max_freq=None,
 
 def text_to_int_sequence(text):
     """ Convert text to an integer sequence """
+    text = text.lower()
     int_sequence = []
     for c in text:
         if c == ' ':
             ch = char_map['<SPACE>']
         else:
-            ch = char_map[c]
+            ch = char_map.get(c, char_map['<SPACE>'])
         int_sequence.append(ch)
     return int_sequence
 
