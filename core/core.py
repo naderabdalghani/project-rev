@@ -29,8 +29,8 @@ class ModelNotTrained(Exception):
 def update_chat_history(tokenizer, new_input_ids, from_bot=False):
     global chat_history
     if len(chat_history) != 0 and not from_bot:
-        chat_history.append(torch.cat([torch.tensor(tokenizer.encode(tokenizer.bos_token, add_special_tokens=False))
-                                      .unsqueeze(1).T.to(DEVICE), new_input_ids], dim=1))
+        chat_history.append(torch.cat([tokenizer.encode(tokenizer.bos_token, add_special_tokens=False,
+                                                        return_tensors='pt').to(DEVICE), new_input_ids], dim=1))
         flattened_chat_history = torch.cat(chat_history, dim=1).to(DEVICE)
         while flattened_chat_history.shape[1] > tokenizer.model_max_length:
             chat_history.pop(0)
