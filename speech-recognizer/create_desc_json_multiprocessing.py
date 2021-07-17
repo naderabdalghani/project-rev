@@ -14,7 +14,6 @@ NUM_OF_PROCESSES = 30
 
 
 def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=JSON_PATH):
-    global data
     data = []
     valid_percent = valid_percent
     test_percent = test_percent
