@@ -10,13 +10,16 @@ from tqdm import tqdm
 import random
 import numpy as np
 
-JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en'  # Contains directory for json files
+JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en/'  # Contains directory for json files
 NUM_OF_PROCESSES = 30
 MFCC_DIM = 13
 RNG_SEED = 123
 
+mean = 0
+std = 1
 
-def store_mfcc_features_to_disk():
+
+def main():
     """ This function is called once after the json files is created
     """
     data = []
@@ -27,7 +30,7 @@ def store_mfcc_features_to_disk():
     if not os.path.exists(JSON_PATH + '/mfcc'):
         os.makedirs(JSON_PATH + '/mfcc')
 
-    while type in types:
+    for type in types:
         with open(JSON_PATH + type + '_corpus.json') as json_line_file:
             for line_num, json_line in enumerate(json_line_file):
                 try:
@@ -50,7 +53,7 @@ def store_mfcc_features_to_disk():
 
     # Run data with process equals to number of processes
     with multiprocessing.Pool(NUM_OF_PROCESSES) as p:
-        for result in p.imap_unordered(create_mfcc, args=(arguments, mean, std,)):
+        for result in p.imap_unordered(create_mfcc, arguments):
             data += result
 
     print("-----------------All converting Done!------------------")
@@ -103,7 +106,7 @@ def get_mean_std(data, k_samples=2000):
     """
     k_samples = min(k_samples, len(data))
     rng = random.Random(RNG_SEED)
-    audio_paths = [row['path'] for row in data]
+    audio_paths = [row['key'] for row in data]
     samples = rng.sample(audio_paths, k_samples)
     feats = [featurize(s) for s in samples]
     feats = np.vstack(feats)
@@ -123,7 +126,7 @@ def normalize(feature, mean, std, eps=1e-14):
     return (feature - mean) / (std + eps)
 
 
-def create_mfcc(specs, mean, std):
+def create_mfcc(specs):
     data = []
     process_name = multiprocessing.current_process().name
     for row in tqdm(specs, desc=process_name, leave=True, position=0):
@@ -134,3 +137,7 @@ def create_mfcc(specs, mean, std):
         row['path'] = mfcc_path
         data.append(row)
     return data
+
+
+if __name__ == "__main__":
+    main()
