@@ -10,9 +10,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from utils import calc_feat_dim, spectrogram_from_file, text_to_int_sequence
 
 RNG_SEED = 123
+JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en'  # Contains directory for json files
 
 
-class AudioGenerator:
+class DataGenerator:
     def __init__(self, step=10, window=20, max_freq=8000, mfcc_dim=13,
                  minimum_batch_size=20, desc_file=None, spectrogram=True, max_duration=10.0,
                  sort_by_duration=False):
@@ -43,6 +44,7 @@ class AudioGenerator:
         self.minimum_batch_size = minimum_batch_size
         self.spectrogram = spectrogram
         self.sort_by_duration = sort_by_duration
+
 
     def get_batch(self, partition):
         """ Obtain a batch of train, validation, or test data
@@ -287,12 +289,12 @@ def vis_train_features(index=0):
         :returns: vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
     """
     # Obtain spectrogram
-    audio_gen = AudioGenerator(spectrogram=True)
+    audio_gen = DataGenerator(spectrogram=True)
     audio_gen.load_train_data()
     vis_audio_path = audio_gen.train_audio_paths[index]
     vis_spectrogram_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
     # Obtain mfcc
-    audio_gen = AudioGenerator(spectrogram=False)
+    audio_gen = DataGenerator(spectrogram=False)
     audio_gen.load_train_data()
     vis_mfcc_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
     # Obtain text label
@@ -323,7 +325,7 @@ def plot_mfcc_feature(vis_mfcc_feature):
     """ Plot mfcc feature of the audio
     :param vis_mfcc_feature: MFCC of the audio
     """
-    fig = plt.figure(figsize=(12,5))
+    fig = plt.figure(figsize=(12, 5))
     ax = fig.add_subplot(111)
     im = ax.imshow(vis_mfcc_feature, cmap=plt.cm.jet, aspect='auto')
     plt.title('Normalized MFCC')
