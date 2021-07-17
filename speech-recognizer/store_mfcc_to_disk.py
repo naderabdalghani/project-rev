@@ -130,11 +130,11 @@ def create_mfcc(specs):
     data = []
     process_name = multiprocessing.current_process().name
     for row in tqdm(specs, desc=process_name, leave=True, position=0):
-        mfcc_path = row['path']
+        mfcc_path = row['key']
         mfcc_path = mfcc_path.replace('clips', 'mfcc')
         with open(mfcc_path, 'wb') as handle:
-            pickle.dump(normalize(featurize(row['path']), mean, std), handle, protocol=pickle.HIGHEST_PROTOCOL)
-        row['path'] = mfcc_path
+            pickle.dump(normalize(featurize(row['key']), mean, std), handle, protocol=pickle.HIGHEST_PROTOCOL)
+        row['key'] = mfcc_path
         data.append(row)
     return data
 
