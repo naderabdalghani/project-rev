@@ -62,7 +62,7 @@ def rotate_checkpoints(use_mtime=False):
         shutil.rmtree(checkpoint)
 
 
-def evaluate(dataset, model, tokenizer, prefix=""):
+def evaluate(dataset, model, tokenizer, silent=True):
     if not os.path.exists(OUTPUT_DIR) and LOCAL_RANK in [-1, 0]:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -79,36 +79,35 @@ def evaluate(dataset, model, tokenizer, prefix=""):
     if N_GPUS > 1:
         model = torch.nn.DataParallel(model)
 
-    logger.info("***** Running Evaluation *****")
-    logger.info("Number of dialogues = %d", len(dataset))
-    logger.info("Batch size = %d", EVAL_BATCH_SIZE)
+    if not silent:
+      logger.info("***** Running Evaluation *****")
+      logger.info("Number of dialogues = %d", len(dataset))
+      logger.info("Batch size = %d", EVAL_BATCH_SIZE)
 
     model.eval()
 
-    max_length = tokenizer.model_max_length
-    stride = max_length
     perplexities = []
 
-    for (inputs, labels) in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0):
-        inputs = inputs.detach().clone().to(DEVICE)
-        end_loc = inputs.size(1)
-        lls = []
-        for i in range(0, inputs.size(1), stride):
-            begin_loc = max(i + stride - max_length, 0)
-            end_loc = min(i + stride, inputs.size(1))
-            target_len = end_loc - i
-            inputs = inputs[:, begin_loc:end_loc].to(DEVICE)
-            labels = inputs.detach().clone().to(DEVICE)
-            labels[:, :-target_len] = LOSS_FN_IGNORE_INDEX
+    with torch.no_grad():
+        for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0, disable=silent):
+            inputs = inputs.detach().clone().to(DEVICE)
+            labels = labels.detach().clone().to(DEVICE)
 
-            with torch.no_grad():
-                outputs = model(inputs, labels=labels)
-                log_likelihood = outputs[0] * target_len
-            lls.append(log_likelihood)
+            logits = model(inputs, labels=labels).logits
+            scores = torch.softmax(logits, dim=2)
+            batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
+            batch_prob[labels == 0] = 1
+            batch_prob = batch_prob.type(torch.float64)
+            batch_prob = batch_prob.prod(dim=1)
+            perplexity = torch.pow(batch_prob, -1 / labels.count_nonzero(dim=1))
 
-        perplexities.append(torch.exp(torch.stack(lls).sum() / end_loc))
+            avg_perplexity = torch.mean(perplexity[perplexity.isfinite()])
+            if not avg_perplexity.isnan():
+                perplexities.append(avg_perplexity.item())
 
-    return {"perplexity": (sum(perplexities) / len(perplexities)).item()}
+    model.train()
+
+    return {"perplexity": (sum(perplexities) / len(perplexities))}
 
 
 def train(train_dataset, eval_dataset, model, tokenizer):
