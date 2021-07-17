@@ -2,6 +2,7 @@ import json
 import numpy as np
 import random
 import librosa
+import _pickle as pickle
 from python_speech_features import mfcc
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
@@ -10,10 +11,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from utils import calc_feat_dim, spectrogram_from_file, text_to_int_sequence
 
 RNG_SEED = 123
-JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en'  # Contains directory for json files
 
 
-class DataGenerator:
+class AudioGenerator:
     def __init__(self, step=10, window=20, max_freq=8000, mfcc_dim=13,
                  minimum_batch_size=20, desc_file=None, spectrogram=True, max_duration=10.0,
                  sort_by_duration=False):
@@ -44,7 +44,6 @@ class DataGenerator:
         self.minimum_batch_size = minimum_batch_size
         self.spectrogram = spectrogram
         self.sort_by_duration = sort_by_duration
-
 
     def get_batch(self, partition):
         """ Obtain a batch of train, validation, or test data
@@ -192,18 +191,18 @@ class DataGenerator:
                 self.cur_test_index = 0
             yield ret
 
-    def load_train_data(self, desc_file='train.json'):
+    def load_train_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/train_corpus.json'):
         self.load_metadata_from_desc_file(desc_file, 'train')
         self.fit_train()
         if self.sort_by_duration:
             self.sort_data_by_duration('train')
 
-    def load_validation_data(self, desc_file='valid.json'):
+    def load_validation_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/valid_corpus.json'):
         self.load_metadata_from_desc_file(desc_file, 'validation')
         if self.sort_by_duration:
             self.sort_data_by_duration('valid')
 
-    def load_test_data(self, desc_file='test.json'):
+    def load_test_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/test_corpus.json'):
         self.load_metadata_from_desc_file(desc_file, 'test')
 
     def load_metadata_from_desc_file(self, desc_file, partition):
@@ -289,14 +288,17 @@ def vis_train_features(index=0):
         :returns: vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
     """
     # Obtain spectrogram
-    audio_gen = DataGenerator(spectrogram=True)
+    audio_gen = AudioGenerator(spectrogram=True)
     audio_gen.load_train_data()
     vis_audio_path = audio_gen.train_audio_paths[index]
     vis_spectrogram_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
     # Obtain mfcc
-    audio_gen = DataGenerator(spectrogram=False)
+    audio_gen = AudioGenerator(spectrogram=False)
     audio_gen.load_train_data()
-    vis_mfcc_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
+    vis_mfcc_feature = None
+    with open('data/cv-corpus-6.1-2020-12-11/en/mfcc1/common_voice_en_23704863.wav', 'rb') as handle:
+        vis_mfcc_feature = pickle.load(handle)
+    # vis_mfcc_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
     # Obtain text label
     vis_text = audio_gen.train_texts[index]
     # Obtain raw audio
@@ -325,7 +327,7 @@ def plot_mfcc_feature(vis_mfcc_feature):
     """ Plot mfcc feature of the audio
     :param vis_mfcc_feature: MFCC of the audio
     """
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(12,5))
     ax = fig.add_subplot(111)
     im = ax.imshow(vis_mfcc_feature, cmap=plt.cm.jet, aspect='auto')
     plt.title('Normalized MFCC')
@@ -342,7 +344,7 @@ def plot_spectrogram_feature(vis_spectrogram_feature):
     """ Plot the normalized spectrogram
     :param vis_spectrogram_feature: spectrogram of the audio
     """
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(12,5))
     ax = fig.add_subplot(111)
     im = ax.imshow(vis_spectrogram_feature, cmap=plt.cm.jet, aspect='auto')
     plt.title('Normalized Spectrogram')
