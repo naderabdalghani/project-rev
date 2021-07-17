@@ -134,13 +134,15 @@ def main():
     if DO_EVAL and LOCAL_RANK in [-1, 0]:
         if saved_instance_path is not None:
             model, tokenizer = load_saved_instance(saved_instance_path)
-        result = evaluate(eval_dataset, model, tokenizer)
-        output_eval_file = os.path.join(OUTPUT_DIR, "evaluation_result.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Evaluation Result *****")
-            for key in result.keys():
-                logger.info("%s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
+        if not DO_TRAIN:
+            dataset = ConversationDataset(tokenizer)
+            datasets_lengths = [len(dataset) - int(len(dataset) * EVAL_DATA_SPLIT_RATIO),
+                                int(len(dataset) * EVAL_DATA_SPLIT_RATIO)]
+            train_dataset, eval_dataset = random_split(dataset, datasets_lengths)
+        result = evaluate(eval_dataset, model, tokenizer, silent=False)
+        logger.info("***** Evaluation Result *****")
+        for key in result.keys():
+            logger.info("%s = %s", key, str(result[key]))
 
 
 if __name__ == '__main__':
