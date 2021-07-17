@@ -4,7 +4,9 @@ from keras.layers import (BatchNormalization, Conv1D, Dense, Input,
                           TimeDistributed, Activation, Bidirectional, SimpleRNN, GRU, LSTM)
 from utils import conv_output_length
 
-def simple_rnn_model(input_dim, output_dim=29):
+CLASS_SIZE = 28  # For each letter to be mapped
+
+def simple_rnn_model(input_dim, output_dim=CLASS_SIZE):
     """ Build a recurrent network for speech
     """
     # Main acoustic input
@@ -21,7 +23,7 @@ def simple_rnn_model(input_dim, output_dim=29):
     return model
 
 
-def rnn_model(input_dim, units, activation, output_dim=29):
+def rnn_model(input_dim, units, activation, output_dim=CLASS_SIZE):
     """ Build a recurrent network for speech
     """
     # Main acoustic input
@@ -42,7 +44,7 @@ def rnn_model(input_dim, units, activation, output_dim=29):
     return model
 
 
-def cnn_rnn_model(input_dim, filters, kernel_size, conv_stride, conv_border_mode, units, output_dim=29):
+def cnn_rnn_model(input_dim, filters, kernel_size, conv_stride, conv_border_mode, units, output_dim=CLASS_SIZE):
     """ Build a recurrent + convolutional network for speech
     """
     # Main acoustic input
@@ -71,7 +73,7 @@ def cnn_rnn_model(input_dim, filters, kernel_size, conv_stride, conv_border_mode
     return model
 
 
-def deep_rnn_model(input_dim, units, recur_layers, output_dim=29):
+def deep_rnn_model(input_dim, units, recur_layers, output_dim=CLASS_SIZE):
     """ Build a deep recurrent network for speech
     """
     # Main acoustic input
@@ -98,7 +100,7 @@ def deep_rnn_model(input_dim, units, recur_layers, output_dim=29):
     return model
 
 
-def bidirectional_rnn_model(input_dim, units, output_dim=29):
+def bidirectional_rnn_model(input_dim, units, output_dim=CLASS_SIZE):
     """ Build a bidirectional recurrent network for speech
     """
     # Main acoustic input
@@ -116,7 +118,7 @@ def bidirectional_rnn_model(input_dim, units, output_dim=29):
     return model
 
 
-def final_model(input_dim, filters, kernel_size, conv_stride, conv_border_mode, units, recur_layers, output_dim=29):
+def final_model(input_dim, filters, kernel_size, conv_stride, conv_border_mode, units, recur_layers, output_dim=CLASS_SIZE):
     """ Build a deep network for speech
     """
     # Main acoustic input
