@@ -285,8 +285,14 @@ if __name__ == '__main__':
     #         word_frequency.update(json.loads(data))
     #
     # export_word_frequency("D:\\cmp\\4th Year\\GP\\Auto_correction_model\\New folder\\dictionary", word_frequency)
-
-    ACM = LanguageModel(os.path.join(OUTPUT_DIR, "dictionary"))
+    loaded = True
+    ACM = LanguageModel(loaded)
     # ACM._word_frequency.remove_by_threshold(threshold=15)
-    correct = ACM.auto_correction_model("")
+    # correct = ACM.auto_correction_model("I am adpicted to foutbull")
+    #p1 = ACM.estimate_sentence_probability(["how", "are", "you", "doing"])
+    #p2 = ACM.estimate_sentence_probability(["how", "are", "you", "doink"])
+    correct = ACM.auto_correction_model("hellow ted how is it goink")
+    #correct = ACM.auto_correction_model("I am adpicted to foutbull")
+    #correct = ACM.auto_correction_model("how ar youu doink")
+    #correct = ACM.auto_correction_model("i red a book")
     print(correct)
