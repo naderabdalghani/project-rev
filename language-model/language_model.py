@@ -2,6 +2,8 @@ import json
 import word_frequency
 import string
 import os
+import pickle
+import numpy as np
 from utils import _parse_into_words, write_file
 from utilities.config import OUTPUT_DIR
 
