@@ -233,6 +233,20 @@ class LanguageModel(object):
         probability = numerator / denominator
 
         return probability
+
+    def estimate_sentence_probability(self, sentence, k=1.0):
+        sentence_to_check = np.copy(sentence)
+        sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
+        sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
+        sentence_to_check = np.insert(sentence_to_check, len(sentence_to_check), "<e>", axis=0)
+        prob = 0.0
+        for i, word in enumerate(sentence_to_check):
+            if i == len(sentence_to_check)-1:
+              return prob
+            prob1 = self.estimate_probability(sentence_to_check[i + 1], sentence_to_check[i], k)
+            prob = prob + np.log(prob1)
+
+
 if __name__ == '__main__':
 
     # Code of merging dictionaries
