@@ -165,6 +165,10 @@ class LanguageModel(object):
                  word: The word for which to check
              Returns:
                  bool: true if yes false if i shouldn't check """
+        if len(word) == 1:
+            return False
+        return True
+
         if len(word) == 1 and word in string.punctuation:
             return False
         if (
