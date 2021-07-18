@@ -181,7 +181,9 @@ class LanguageModel(object):
         except ValueError:
             pass
 
-        return True
+        if(self.__getitem__(word) <= 10000):
+            return True
+        return False
 
     def edit_two_letters(self, words):
         """ Compute all strings that are 2 edits away from all the words
