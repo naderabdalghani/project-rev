@@ -189,7 +189,50 @@ class LanguageModel(object):
             corrected_sentence += self.get_correction(word) + " "
         return corrected_sentence
 
+    def estimate_probability(self, word, previous_n_gram, k=1.0):
+        """
+        Estimate the probabilities of a next word using the n-gram counts with k-smoothing
 
+        Args:
+            word: next word
+            previous_n_gram: A sequence of words of length n
+            k: positive constant, smoothing parameter
+
+        Returns:
+            A probability
+        """
+        # convert list to tuple to use it as a dictionary key
+        if (isinstance(previous_n_gram, str)):
+            previous_n_gram = (previous_n_gram,)
+        else:
+            previous_n_gram = tuple(previous_n_gram)
+
+        # Set the denominator
+        # If the previous n-gram exists in the dictionary of n-gram counts,
+        # Get its count.  Otherwise set the count to zero
+        # Use the dictionary that has counts for n-grams
+        previous_n_gram_count = self._uni_grams.get(previous_n_gram, 0)
+
+        # Calculate the denominator using the count of the previous n gram
+        # and apply k-smoothing
+        denominator = previous_n_gram_count + k * self._uni_grams_size
+
+        # Define n plus 1 gram as the previous n-gram plus the current word as a tuple
+        n_plus1_gram = previous_n_gram + (word,)
+
+        # Set the count to the count in the dictionary,
+        # otherwise 0 if not in the dictionary
+        # use the dictionary that has counts for the n-gram plus current word
+        n_plus1_gram_count = self._bi_grams.get(n_plus1_gram, 0)
+
+        # Define the numerator use the count of the n-gram plus current word,
+        # and apply smoothing
+        numerator = n_plus1_gram_count + k
+
+        # Calculate the probability as the numerator divided by denominator
+        probability = numerator / denominator
+
+        return probability
 if __name__ == '__main__':
 
     # Code of merging dictionaries
