@@ -1,6 +1,7 @@
 
 import json
 from collections import Counter
+import string
 from utils import _parse_into_words, load_file
 
 
@@ -134,4 +135,4 @@ class WordFrequency(object):
         for key in self._dictionary:
             if len(key) > self._longest_word_length:
                 self._longest_word_length = len(key)
-            self._letters.update(key)
+            self._letters.update(string.ascii_lowercase)
