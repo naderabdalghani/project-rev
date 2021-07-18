@@ -67,8 +67,7 @@ class AudioGenerator:
             raise Exception("Invalid partition. "
                             "Must be train/validation or test")
 
-        features = [self.normalize(self.featurize(a)) for a in
-                    audio_paths[cur_index:cur_index + self.minimum_batch_size]]
+        features = [a for a in audio_paths[cur_index:cur_index + self.minimum_batch_size]]
 
         # Calculate necessary sizes
         max_length = max([features[i].shape[0]
@@ -191,18 +190,18 @@ class AudioGenerator:
                 self.cur_test_index = 0
             yield ret
 
-    def load_train_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/train_corpus.json'):
+    def load_train_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/train_corpus_mfcc.json'):
         self.load_metadata_from_desc_file(desc_file, 'train')
-        self.fit_train()
+        # self.fit_train()
         if self.sort_by_duration:
             self.sort_data_by_duration('train')
 
-    def load_validation_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/valid_corpus.json'):
+    def load_validation_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/valid_corpus_mfcc.json'):
         self.load_metadata_from_desc_file(desc_file, 'validation')
         if self.sort_by_duration:
             self.sort_data_by_duration('valid')
 
-    def load_test_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/test_corpus.json'):
+    def load_test_data(self, desc_file='data/cv-corpus-6.1-2020-12-11/en/test_corpus_mfcc.json'):
         self.load_metadata_from_desc_file(desc_file, 'test')
 
     def load_metadata_from_desc_file(self, desc_file, partition):
@@ -291,22 +290,23 @@ def vis_train_features(index=0):
     audio_gen = AudioGenerator(spectrogram=True)
     audio_gen.load_train_data()
     vis_audio_path = audio_gen.train_audio_paths[index]
-    vis_spectrogram_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
+    wav_audio_path = vis_audio_path.replace('mfcc', 'clips')
+    vis_spectrogram_feature = audio_gen.normalize(audio_gen.featurize(wav_audio_path))
     # Obtain mfcc
     audio_gen = AudioGenerator(spectrogram=False)
     audio_gen.load_train_data()
     vis_mfcc_feature = None
-    with open('data/cv-corpus-6.1-2020-12-11/en/mfcc1/common_voice_en_23704863.wav', 'rb') as handle:
+    with open(vis_audio_path, 'rb') as handle:
         vis_mfcc_feature = pickle.load(handle)
     # vis_mfcc_feature = audio_gen.normalize(audio_gen.featurize(vis_audio_path))
     # Obtain text label
     vis_text = audio_gen.train_texts[index]
     # Obtain raw audio
-    vis_raw_audio, _ = librosa.load(vis_audio_path)
+    vis_raw_audio, _ = librosa.load(wav_audio_path)
     # Print total number of training examples
     print('There are %d total training examples.' % len(audio_gen.train_audio_paths))
     # Return labels for plotting
-    return vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, vis_audio_path
+    return vis_text, vis_raw_audio, vis_mfcc_feature, vis_spectrogram_feature, wav_audio_path
 
 
 def plot_raw_audio(vis_raw_audio):
