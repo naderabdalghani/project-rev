@@ -107,11 +107,9 @@ class LanguageModel(object):
                 word (str): The word for which to calculate candidate spellings
             Returns:
                 set: The set of words that are possible corrections """
-        if self.known([word]):  # short-cut if word is correct already
+        if self.known([word]) and not self.should_check(word):  # short-cut if word is correct already
             return {word}
 
-        if not self.should_check(word):
-            return {word}
 
         # get edit distance 1...
         res = [x for x in self.edit_one_letter(word)]
