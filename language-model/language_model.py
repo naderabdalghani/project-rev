@@ -77,14 +77,28 @@ class LanguageModel(object):
         total_words = self._word_frequency.total_words
         return self._word_frequency.dictionary[word] / total_words
 
-    def get_correction(self, word):
+    def get_correction(self, words, word, i):
         """ The most probable correct spelling for the word
             Args:
                 word (str): The word to correct
             Returns:
                 str: The most likely correction """
+        probabilities_arr = []
+        max_index = 0
+        sentence = np.copy(words)
         corrections = list(self.get_corrections(word))
-        return max(sorted(corrections), key=self.__getitem__)
+        old_word_idx = 0
+        if len(corrections) > 1:
+            for j, correction in enumerate(corrections):
+                sentence[i] = correction
+                probabilities_arr.append(self.estimate_sentence_probability(sentence))
+                if correction == word:
+                    old_word_idx = j
+            maximum = max(probabilities_arr)
+            max_index = probabilities_arr.index(maximum)
+            if maximum == probabilities_arr[old_word_idx]:
+                return corrections[old_word_idx]
+        return corrections[max_index]
 
     def get_corrections(self, word):
         """ Generate possible spelling corrections for the provided word up to
