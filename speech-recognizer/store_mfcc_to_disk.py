@@ -2,6 +2,7 @@
 """
 import multiprocessing
 import json
+from tqdm.notebook import tqdm
 import pickle
 from python_speech_features import mfcc
 import scipy.io.wavfile as wav
@@ -14,15 +15,17 @@ JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en/'  # Contains directory for json f
 NUM_OF_PROCESSES = 30
 MFCC_DIM = 13
 RNG_SEED = 123
+MAX_DURATION = 10
+PICKLE_NAME = 'features'
 
 mean = 0
 std = 1
 
 
-def main():
+def store_mfcc_to_disk():
     """ This function is called once after the json files is created
     """
-    data = []
+    features = []
     types = ['train', 'valid', 'test']
     specs = []
     cnt = {'train': 0, 'valid': 0, 'test': 0}
@@ -54,37 +57,11 @@ def main():
     # Run data with process equals to number of processes
     with multiprocessing.Pool(NUM_OF_PROCESSES) as p:
         for result in p.imap_unordered(create_mfcc, arguments):
-            data += result
+            features += result
 
     print("-----------------All converting Done!------------------")
-    print(str(len(data)) + "Files converted!")
-    print("Creating JSON's")
-    with open(JSON_PATH + "/" + 'train_corpus_mfcc.json', 'w') as train_file:
-        i = 0
-        train_end = cnt['train']
-        while i < train_end:
-            r = data[i]
-            line = json.dumps(r)
-            train_file.write(line + "\n")
-            i = i + 1
-
-    with open(JSON_PATH + "/" + 'valid_corpus_mfcc.json', 'w') as valid_file:
-        i = cnt['train']
-        valid_end = i + cnt['valid']
-        while i < valid_end:
-            r = data[i]
-            line = json.dumps(r)
-            valid_file.write(line + "\n")
-            i = i + 1
-
-    with open(JSON_PATH + "/" + 'test_corpus_mfcc.json', 'w') as test_file:
-        i = cnt['train'] + cnt['valid']
-        test_end = i + cnt['test']
-        while i < test_end:
-            r = data[i]
-            line = json.dumps(r)
-            test_file.write(line + "\n")
-            i = i + 1
+    with open(JSON_PATH + PICKLE_NAME, 'wb') as mf:
+        pickle.dump(features, mf, protocol=pickle.HIGHEST_PROTOCOL)
     print("Done!")
 
 
@@ -127,17 +104,13 @@ def normalize(feature, mean, std, eps=1e-14):
 
 
 def create_mfcc(specs):
-    data = []
+    features = []
     process_name = multiprocessing.current_process().name
     for row in tqdm(specs, desc=process_name, leave=True, position=0):
-        mfcc_path = row['key']
-        mfcc_path = mfcc_path.replace('clips', 'mfcc')
-        with open(mfcc_path, 'wb') as handle:
-            pickle.dump(normalize(featurize(row['key']), mean, std), handle, protocol=pickle.HIGHEST_PROTOCOL)
-        row['key'] = mfcc_path
-        data.append(row)
-    return data
+        if row['duration'] <= MAX_DURATION:
+            features.append((normalize(featurize(row['key']), mean, std)), row['text'])
+    return features
 
 
 if __name__ == "__main__":
-    main()
+    store_mfcc_to_disk()
