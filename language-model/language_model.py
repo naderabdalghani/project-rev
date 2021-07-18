@@ -209,8 +209,10 @@ class LanguageModel(object):
                 text: The corrected sentence """
         corrected_sentence = ""
         words = self.split_words(text)
-        for word in words:
-            corrected_sentence += self.get_correction(word) + " "
+        for  i, word in enumerate(words):
+            correct =  self.get_correction(words, word, i)
+            corrected_sentence += correct + " "
+            words[i] = correct
         return corrected_sentence
 
     def estimate_probability(self, word, previous_n_gram, k=1.0):
