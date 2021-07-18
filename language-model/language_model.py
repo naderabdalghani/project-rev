@@ -19,7 +19,11 @@ class LanguageModel(object):
         self._word_frequency = word_frequency.WordFrequency()
 
         if local_dictionary:
-            self._word_frequency.load_dictionary(local_dictionary)
+            self._word_frequency.load_dictionary(os.path.join(OUTPUT_DIR, "dictionary"))
+            self._word_frequency.remove_by_threshold(100)
+            self._uni_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "unigrams_tuples"), 'rb'))
+            self._bi_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "bigrams_tuples"), 'rb'))
+            self._uni_grams_size = len(self._uni_grams)
         else:
             raise Exception("Sorry, There is no Dictionary to load Please enter the path of the dictionary")
 
