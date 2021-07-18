@@ -135,7 +135,7 @@ class LanguageModel(object):
         return set(
             w
             for w in tmp
-            if w in self._word_frequency.dictionary and self.should_check(w)
+            if w in self._word_frequency.dictionary
         )
 
     def edit_one_letter(self, word):
