@@ -208,6 +208,7 @@ class LanguageModel(object):
             Returns:
                 text: The corrected sentence """
         corrected_sentence = ""
+        text = text.lower()
         words = self.split_words(text)
         for  i, word in enumerate(words):
             correct =  self.get_correction(words, word, i)
