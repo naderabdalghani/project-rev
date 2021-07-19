@@ -26,6 +26,7 @@ class LanguageModel(object):
             self._uni_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "unigrams_tuples"), 'rb'))
             self._bi_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "bigrams_tuples"), 'rb'))
             self._tri_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "trigrams_tuples"), 'rb'))
+            self._names = pickle.load(open(os.path.join(OUTPUT_DIR, "names"), 'rb'))
             self._uni_grams_size = len(self._uni_grams)
         else:
             raise Exception("Sorry, There is no Dictionary to load Please enter the path of the dictionary")
@@ -212,7 +213,10 @@ class LanguageModel(object):
         text = text.lower()
         words = self.split_words(text)
         for  i, word in enumerate(words):
-            correct =  self.get_correction(words, word, i)
+            if word.title() not in self._names:
+                correct =  self.get_correction(words, word, i)
+            else:
+                correct = word
             corrected_sentence += correct + " "
             words[i] = correct
         return corrected_sentence
