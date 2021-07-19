@@ -25,6 +25,7 @@ class LanguageModel(object):
             self._word_frequency.remove_by_threshold(100)
             self._uni_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "unigrams_tuples"), 'rb'))
             self._bi_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "bigrams_tuples"), 'rb'))
+            self._tri_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "trigrams_tuples"), 'rb'))
             self._uni_grams_size = len(self._uni_grams)
         else:
             raise Exception("Sorry, There is no Dictionary to load Please enter the path of the dictionary")
@@ -216,7 +217,7 @@ class LanguageModel(object):
             words[i] = correct
         return corrected_sentence
 
-    def estimate_probability(self, word, previous_n_gram, k=1.0):
+    def estimate_probability(self, word, previous_n_gram, tri=True, k=1.0):
         """
         Estimate the probabilities of a next word using the n-gram counts with k-smoothing
 
@@ -238,7 +239,10 @@ class LanguageModel(object):
         # If the previous n-gram exists in the dictionary of n-gram counts,
         # Get its count.  Otherwise set the count to zero
         # Use the dictionary that has counts for n-grams
-        previous_n_gram_count = self._uni_grams.get(previous_n_gram, 0)
+        if not tri:
+            previous_n_gram_count = self._uni_grams.get(previous_n_gram, 0)
+        else:
+            previous_n_gram_count = self._bi_grams.get(previous_n_gram, 0)
 
         # Calculate the denominator using the count of the previous n gram
         # and apply k-smoothing
@@ -250,7 +254,10 @@ class LanguageModel(object):
         # Set the count to the count in the dictionary,
         # otherwise 0 if not in the dictionary
         # use the dictionary that has counts for the n-gram plus current word
-        n_plus1_gram_count = self._bi_grams.get(n_plus1_gram, 0)
+        if not tri:
+            n_plus1_gram_count = self._bi_grams.get(n_plus1_gram, 0)
+        else:
+            n_plus1_gram_count = self._tri_grams.get(n_plus1_gram, 0)
 
         # Define the numerator use the count of the n-gram plus current word,
         # and apply smoothing
@@ -261,16 +268,21 @@ class LanguageModel(object):
 
         return probability
 
-    def estimate_sentence_probability(self, sentence, k=1.0):
+    def estimate_sentence_probability(self, sentence, tri=True,k=1.0):
         sentence_to_check = np.copy(sentence)
         sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
         sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
         sentence_to_check = np.insert(sentence_to_check, len(sentence_to_check), "<e>", axis=0)
         prob = 0.0
         for i, word in enumerate(sentence_to_check):
-            if i == len(sentence_to_check)-1:
+            if i == len(sentence_to_check)-1 and not tri:
               return prob
-            prob1 = self.estimate_probability(sentence_to_check[i + 1], sentence_to_check[i], k)
+            if i == len(sentence_to_check)-2 and tri:
+              return prob
+            if not tri:
+                prob1 = self.estimate_probability(sentence_to_check[i + 1], sentence_to_check[i], tri, k)
+            else:
+                prob1 = self.estimate_probability(sentence_to_check[i + 2], sentence_to_check[i:i+2], tri, k)
             prob = prob + np.log(prob1)
 
 
