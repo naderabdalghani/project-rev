@@ -167,25 +167,24 @@ class LanguageModel(object):
                  word: The word for which to check
              Returns:
                  bool: true if yes false if i shouldn't check """
-        if len(word) == 1:
-            return False
-        return True
 
-        if len(word) == 1 and word in string.punctuation:
-            return False
-        if (
-            len(word) > self._word_frequency.longest_word_length + 3  # 2 or 3 ?
-        ):  # magic number to allow removal of up to 2 letters.
-            return False
         try:  # check if it is a number (int, float, etc)
             float(word)
             return False
         except ValueError:
             pass
 
-        if(self.__getitem__(word) <= 10000):
-            return True
-        return False
+        if (
+            len(word) > self._word_frequency.longest_word_length + 3  # 2 or 3 ?
+        ):  # magic number to allow removal of up to 2 letters.
+            return False
+
+        if len(word) == 1:
+            return False
+        return True
+
+        # if len(word) == 1 and word in string.punctuation:
+        #     return False
 
     def edit_two_letters(self, words):
         """ Compute all strings that are 2 edits away from all the words
