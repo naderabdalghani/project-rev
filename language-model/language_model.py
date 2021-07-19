@@ -296,4 +296,5 @@ if __name__ == '__main__':
     #correct = ACM.auto_correction_model("I am adpicted to foutbull")
     #correct = ACM.auto_correction_model("how ar youu doink")
     #correct = ACM.auto_correction_model("i red a book")
+    #correct = ACM.auto_correction_model("i wont a cake")
     print(correct)
