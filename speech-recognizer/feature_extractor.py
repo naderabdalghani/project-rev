@@ -14,12 +14,12 @@ CACHE_FILE = 'features.pickle'
 MAX_DURATION = 10
 
 train_audio_transforms = nn.Sequential(
-    torchaudio.transforms.MFCC(n_mfcc=16),
+    torchaudio.transforms.MFCC(sample_rate=48000, n_mfcc=16),
     torchaudio.transforms.FrequencyMasking(freq_mask_param=30),
     torchaudio.transforms.TimeMasking(time_mask_param=100)
 )
 
-valid_audio_transforms = torchaudio.transforms.MFCC(n_mfcc=16)
+valid_audio_transforms = torchaudio.transforms.MFCC(sample_rate=48000, n_mfcc=16)
 
 
 def save_features():
@@ -47,6 +47,7 @@ def save_features():
 def extract_dataset_features(audio_samples, dataset_type):
     # Split data to be run over multi processes
     arguments = []
+    spectrograms = []
     argument_len = len(audio_samples) // NUM_OF_PROCESSES
     for p in range(NUM_OF_PROCESSES):
         start_idx = p * argument_len
@@ -57,7 +58,8 @@ def extract_dataset_features(audio_samples, dataset_type):
 
     # Run data with process equals to number of processes
     with multiprocessing.Pool(NUM_OF_PROCESSES) as p:
-        spectrograms = p.starmap(extract_audio_sample_features, arguments)
+        for processed_batch in p.starmap(extract_audio_sample_features, arguments):
+            spectrograms += processed_batch
 
     print("----------------- " + dataset_type.capitalize() + "ing dataset conversion done! ------------------")
     with open(os.path.join(JSON_PATH, dataset_type + '_' + CACHE_FILE), 'wb') as handle:
@@ -72,13 +74,13 @@ def extract_audio_sample_features(audio_samples, dataset_type):
         for audio_sample in tqdm(audio_samples, desc=process_name, leave=True, position=0):
             if audio_sample['duration'] < MAX_DURATION:
                 waveform, _ = torchaudio.load(audio_sample["key"])
-                spectrograms.append((train_audio_transforms(waveform).squeeze(0).transpose(0, 1),
+                spectrograms.append((train_audio_transforms(waveform).squeeze(0).transpose(0, 1).tolist(),
                                      audio_sample['text']))
     else:
         for audio_sample in tqdm(audio_samples, desc=process_name, leave=True, position=0):
             if audio_sample['duration'] < MAX_DURATION:
                 waveform, _ = torchaudio.load(audio_sample["key"])
-                spectrograms.append((valid_audio_transforms(waveform).squeeze(0).transpose(0, 1),
+                spectrograms.append((valid_audio_transforms(waveform).squeeze(0).transpose(0, 1).tolist(),
                                      audio_sample['text']))
     return spectrograms
 
