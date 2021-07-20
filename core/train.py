@@ -12,8 +12,8 @@ from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
 from config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
-    LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, FP16, N_GPUS, LOCAL_RANK, \
-    PER_GPU_TRAIN_BATCH_SIZE, FP16_OPT_LEVEL, DEVICE, MAX_GRAD_NORM, LOGGING_STEPS, EVALUATE_DURING_TRAINING, \
+    LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, \
+    PER_GPU_TRAIN_BATCH_SIZE, DEVICE, MAX_GRAD_NORM, LOGGING_STEPS, EVALUATE_DURING_TRAINING, \
     MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE, \
     RESUME_TRAINING
 
@@ -61,7 +61,7 @@ def rotate_checkpoints(use_mtime=False):
 
 
 def evaluate(dataset, model, tokenizer, silent=True):
-    if not os.path.exists(MODELS_DIR) and LOCAL_RANK in [-1, 0]:
+    if not os.path.exists(MODELS_DIR):
         os.makedirs(MODELS_DIR, exist_ok=True)
 
     def collate(dialogues):
@@ -71,11 +71,8 @@ def evaluate(dataset, model, tokenizer, silent=True):
         return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
             pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
-    sampler = SequentialSampler(dataset) if LOCAL_RANK == -1 else DistributedSampler(dataset)
+    sampler = SequentialSampler(dataset)
     eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=EVAL_BATCH_SIZE, collate_fn=collate)
-
-    if N_GPUS > 1:
-        model = torch.nn.DataParallel(model)
 
     if not silent:
         logger.info("***** Running Evaluation *****")
@@ -110,9 +107,7 @@ def evaluate(dataset, model, tokenizer, silent=True):
 
 
 def train(train_dataset, eval_dataset, model, tokenizer):
-    tb_writer = None
-    if LOCAL_RANK in [-1, 0]:
-        tb_writer = SummaryWriter()
+    tb_writer = SummaryWriter()
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
@@ -121,7 +116,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
         return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
             pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
-    sampler = RandomSampler(train_dataset) if LOCAL_RANK == -1 else DistributedSampler(train_dataset)
+    sampler = RandomSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate)
 
     num_of_epochs = NUM_TRAIN_EPOCHS
@@ -176,44 +171,23 @@ def train(train_dataset, eval_dataset, model, tokenizer):
         except ValueError:
             logger.info("Starting fine-tuning...")
 
-    if FP16:
-        try:
-            from apex import amp
-        except ImportError:
-            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-        model, optimizer = amp.initialize(model, optimizer, opt_level=FP16_OPT_LEVEL)
-
-    # Multi-gpu training (should be after apex fp16 initialization)
-    if N_GPUS > 1:
-        model = torch.nn.DataParallel(model)
-
-    # Distributed training (should be after apex fp16 initialization)
-    if LOCAL_RANK != -1:
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK, find_unused_parameters=True
-        )
-
     logger.info("***** Training Model *****")
     logger.info("Number of dialogues = %d", len(train_dataset))
     logger.info("Number of epochs = %d", num_of_epochs)
     logger.info("Batch size per device = %d", PER_GPU_TRAIN_BATCH_SIZE)
     logger.info(
-        "Total train batch size (w. parallelization, distribution & accumulation) = %d",
-        TRAIN_BATCH_SIZE
-        * NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
-        * (torch.distributed.get_world_size() if LOCAL_RANK != -1 else 1),
+        "Total train batch size with gradient accumulation) = %d",
+        TRAIN_BATCH_SIZE * NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
     )
     logger.info("Number of batches till gradient accumulation = %d", NUM_BATCHES_TILL_GRADIENT_ACCUMULATION)
     logger.info("Total optimization steps = %d", total_optimization_steps)
 
     training_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
-    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0,
-                    disable=LOCAL_RANK not in [-1, 0])
+    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0)
 
     for _ in epochs:
-        data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1,
-                             disable=LOCAL_RANK not in [-1, 0])
+        data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1)
         for step, (inputs, labels) in enumerate(data_iterator):
 
             if steps_trained_in_current_epoch > 0:
@@ -230,32 +204,20 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             model.train()
             outputs = model(inputs, labels=labels)
             loss = outputs[0]
-
-            if N_GPUS > 1:
-                loss = loss.mean()
-            if NUM_BATCHES_TILL_GRADIENT_ACCUMULATION > 1:
-                loss = loss / NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
-
-            if FP16:
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
+            loss = loss / NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
+            loss.backward()
 
             training_loss += loss.item()
             if (step + 1) % NUM_BATCHES_TILL_GRADIENT_ACCUMULATION == 0:
-                if FP16:
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), MAX_GRAD_NORM)
-                else:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
 
                 optimizer.step()
                 scheduler.step()
                 model.zero_grad()
                 global_step += 1
 
-                if LOCAL_RANK in [-1, 0] and LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
-                    if LOCAL_RANK == -1 and EVALUATE_DURING_TRAINING:
+                if LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
+                    if EVALUATE_DURING_TRAINING:
                         results = evaluate(eval_dataset, model, tokenizer)
                         for key, value in results.items():
                             tb_writer.add_scalar("{}".format(key.capitalize()), value, global_step)
@@ -263,7 +225,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
                     tb_writer.add_scalar("Training_Loss", (training_loss - logging_loss) / LOGGING_STEPS, global_step)
                     logging_loss = training_loss
 
-                if LOCAL_RANK in [-1, 0] and SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
+                if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
                     checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
                     os.makedirs(checkpoint_output_dir, exist_ok=True)
                     model_to_save = model.module if hasattr(model, "module") else model
@@ -281,7 +243,6 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             epochs.close()
             break
 
-    if LOCAL_RANK in [-1, 0]:
-        tb_writer.close()
+    tb_writer.close()
 
     return global_step, (training_loss / global_step), model

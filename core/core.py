@@ -7,8 +7,8 @@ import torch
 from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotForConditionalGeneration
 
-from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, \
-    EVAL_DATA_SPLIT_RATIO, DO_EVAL, SAVED_INSTANCE_PREFIX, BAD_WORDS
+from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, \
+    EVAL_DATA_SPLIT_RATIO, DO_EVAL, SAVED_INSTANCE_PREFIX, BAD_WORDS, CUDA
 from exceptions import CoreModelNotTrained
 from preprocessing import ConversationDataset
 from train import train, evaluate
@@ -85,11 +85,7 @@ def get_saved_instance_path(use_mtime=False):
 
 
 def main():
-    logger.info("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bit training: %s",
-                LOCAL_RANK, DEVICE, N_GPUS, bool(LOCAL_RANK != -1), FP16)
-
-    if LOCAL_RANK not in [-1, 0]:
-        torch.distributed.barrier()
+    logger.info("Running on GPU" if CUDA else "Running on CPU")
 
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
     dataset = ConversationDataset(tokenizer)
@@ -106,23 +102,19 @@ def main():
     else:
         model, tokenizer = load_saved_instance(saved_instance_path)
 
-    if LOCAL_RANK == 0:
-        torch.distributed.barrier()
-
     if DO_TRAIN:
         total_number_of_steps, training_loss, model = train(train_dataset, eval_dataset, model, tokenizer)
         logger.info("Number of steps = %s, Average training loss = %s", total_number_of_steps, training_loss)
 
-        if LOCAL_RANK == -1 or torch.distributed.get_rank() == 0:
-            saved_instance_output_dir = os.path.join(MODELS_DIR, "{}-{}-{}".format(SAVED_INSTANCE_PREFIX,
-                                                                                   total_number_of_steps,
-                                                                                   training_loss))
-            os.makedirs(saved_instance_output_dir, exist_ok=True)
-            model_to_save = model.module if hasattr(model, "module") else model
-            logger.info("Saving trained model instance to %s", saved_instance_output_dir)
-            model_to_save.save_pretrained(saved_instance_output_dir)
+        saved_instance_output_dir = os.path.join(MODELS_DIR, "{}-{}-{}".format(SAVED_INSTANCE_PREFIX,
+                                                                               total_number_of_steps,
+                                                                               training_loss))
+        os.makedirs(saved_instance_output_dir, exist_ok=True)
+        model_to_save = model.module if hasattr(model, "module") else model
+        logger.info("Saving trained model instance to %s", saved_instance_output_dir)
+        model_to_save.save_pretrained(saved_instance_output_dir)
 
-    if DO_EVAL and LOCAL_RANK in [-1, 0]:
+    if DO_EVAL:
         result = evaluate(eval_dataset, model, tokenizer, silent=False)
         logger.info("***** Evaluation Result *****")
         for key in result.keys():

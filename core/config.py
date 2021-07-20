@@ -26,19 +26,10 @@ SAVE_STEPS = 500
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
 OVERWRITE_CACHE = False
 RESUME_TRAINING = False
-LOCAL_RANK = -1  # Distributed training local rank of process. -1 implies no distributed training
 CUDA = torch.cuda.is_available()
-if LOCAL_RANK != -1:
-    torch.cuda.set_device(LOCAL_RANK)
-    DEVICE = torch.device("cuda" if CUDA else "cpu", LOCAL_RANK)
-    torch.distributed.init_process_group(backend='nccl')
-else:
-    DEVICE = torch.device("cuda" if CUDA else "cpu")
-N_GPUS = torch.cuda.device_count() if CUDA else 0
-TRAIN_BATCH_SIZE = PER_GPU_TRAIN_BATCH_SIZE * max(1, N_GPUS)
-EVAL_BATCH_SIZE = PER_GPU_EVAL_BATCH_SIZE * max(1, N_GPUS)
-FP16 = False  # Whether to use 16-bit (mixed) precision training through NVIDIA apex
-FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']
+DEVICE = torch.device("cuda" if CUDA else "cpu")
+TRAIN_BATCH_SIZE = 4
+EVAL_BATCH_SIZE = 4
 BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
 with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
@@ -52,5 +43,5 @@ LOSS_FN_IGNORE_INDEX = -100
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
-    level=logging.INFO if LOCAL_RANK in [-1, 0] else logging.WARN,
+    level=logging.INFO
 )
