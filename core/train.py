@@ -5,17 +5,16 @@ import re
 import shutil
 
 import torch
+from ray import tune
 from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import RandomSampler, DataLoader, SequentialSampler, DistributedSampler
+from torch.nn.utils import clip_grad_norm_
+from torch.utils.data import RandomSampler, DataLoader, SequentialSampler
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
-from config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
-    LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, \
-    PER_GPU_TRAIN_BATCH_SIZE, DEVICE, MAX_GRAD_NORM, LOGGING_STEPS, EVALUATE_DURING_TRAINING, \
-    MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE, \
-    RESUME_TRAINING
+from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, \
+    CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, EVALUATE_DURING_TRAINING, RESUME_TRAINING, MAX_GRAD_NORM
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +59,7 @@ def rotate_checkpoints(use_mtime=False):
         shutil.rmtree(checkpoint)
 
 
-def evaluate(dataset, model, tokenizer, silent=True):
+def evaluate(config, dataset, model, tokenizer, silent=True):
     if not os.path.exists(MODELS_DIR):
         os.makedirs(MODELS_DIR, exist_ok=True)
 
@@ -72,16 +71,18 @@ def evaluate(dataset, model, tokenizer, silent=True):
             pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = SequentialSampler(dataset)
-    eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=EVAL_BATCH_SIZE, collate_fn=collate)
+    eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=config["BATCH_SIZE"], collate_fn=collate)
 
     if not silent:
         logger.info("***** Running Evaluation *****")
         logger.info("Number of dialogues = %d", len(dataset))
-        logger.info("Batch size = %d", EVAL_BATCH_SIZE)
+        logger.info("Batch size = %d", config["BATCH_SIZE"])
 
     model.eval()
 
     perplexities = []
+    valid_loss = 0
+    valid_steps = 0
 
     with torch.no_grad():
         for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", unit="batch", leave=True, position=2,
@@ -89,7 +90,10 @@ def evaluate(dataset, model, tokenizer, silent=True):
             inputs = inputs.detach().clone().to(DEVICE)
             labels = labels.detach().clone().to(DEVICE)
 
-            logits = model(inputs, labels=labels).logits
+            output = model(inputs, labels=labels)
+            valid_loss += output.loss.item()
+            valid_steps += 1
+            logits = output.logits
             scores = torch.softmax(logits, dim=2)
             batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
             batch_prob[labels == 0] = 1
@@ -103,10 +107,10 @@ def evaluate(dataset, model, tokenizer, silent=True):
 
     model.train()
 
-    return {"perplexity": (sum(perplexities) / len(perplexities))}
+    return {"perplexity": (sum(perplexities) / len(perplexities)), 'validation_loss': valid_loss / valid_steps}
 
 
-def train(train_dataset, eval_dataset, model, tokenizer):
+def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tuning=True):
     tb_writer = SummaryWriter()
 
     def collate(dialogues):
@@ -117,23 +121,21 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = RandomSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate)
+    train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=config["BATCH_SIZE"], collate_fn=collate)
 
-    num_of_epochs = NUM_TRAIN_EPOCHS
+    num_of_epochs = config["NUM_TRAIN_EPOCHS"]
     if MAX_STEPS > 0:
         total_optimization_steps = MAX_STEPS
         num_of_epochs = \
-            total_optimization_steps // (len(train_dataloader) // NUM_BATCHES_TILL_GRADIENT_ACCUMULATION) + 1
+            total_optimization_steps // (len(train_dataloader)) + 1
     else:
-        total_optimization_steps = (len(train_dataloader) // NUM_BATCHES_TILL_GRADIENT_ACCUMULATION) * num_of_epochs
-
-    model = model.module if hasattr(model, "module") else model  # In case of distributed training
+        total_optimization_steps = (len(train_dataloader)) * num_of_epochs
 
     optim_grouped_params = [
         {
             "params": [param for name, param in model.named_parameters()
                        if not any(no_decay_param_name in name for no_decay_param_name in NO_DECAY_PARAMS_NAMES)],
-            "weight_decay": WEIGHT_DECAY
+            "weight_decay": config["WEIGHT_DECAY"]
         },
         {
             "params": [param for name, param in model.named_parameters()
@@ -141,8 +143,8 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             "weight_decay": 0.0
         }
     ]
-    optimizer = AdamW(optim_grouped_params, lr=LEARNING_RATE, eps=ADAM_EPSILON)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=WARMUP_STEPS,
+    optimizer = AdamW(optim_grouped_params, lr=config["LEARNING_RATE"], eps=config["ADAM_EPSILON"])
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=config["WARMUP_STEPS"],
                                                 num_training_steps=total_optimization_steps)
 
     global_step = 0
@@ -155,11 +157,9 @@ def train(train_dataset, eval_dataset, model, tokenizer):
         try:
             checkpoint_directory_suffix = checkpoint_path.split("-")[-1].split("/")[0]
             global_step = int(checkpoint_directory_suffix)
-            epochs_trained = global_step // (len(train_dataloader) // NUM_BATCHES_TILL_GRADIENT_ACCUMULATION)
-            steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // NUM_BATCHES_TILL_GRADIENT_ACCUMULATION)
-            logger.info("Loading saved optimizer and scheduler states from checkpoint path %s",
-                        checkpoint_path)
+            epochs_trained = global_step // len(train_dataloader)
+            steps_trained_in_current_epoch = global_step % len(train_dataloader)
+            logger.info("Loading saved optimizer and scheduler states from checkpoint path %s", checkpoint_path)
             optimizer.load_state_dict(torch.load(os.path.join(checkpoint_path, "optimizer.pt")))
             scheduler.load_state_dict(torch.load(os.path.join(checkpoint_path, "scheduler.pt")))
             logger.info("Loading saved model from checkpoint path %s", checkpoint_path)
@@ -174,12 +174,8 @@ def train(train_dataset, eval_dataset, model, tokenizer):
     logger.info("***** Training Model *****")
     logger.info("Number of dialogues = %d", len(train_dataset))
     logger.info("Number of epochs = %d", num_of_epochs)
-    logger.info("Batch size per device = %d", PER_GPU_TRAIN_BATCH_SIZE)
-    logger.info(
-        "Total train batch size with gradient accumulation) = %d",
-        TRAIN_BATCH_SIZE * NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
-    )
-    logger.info("Number of batches till gradient accumulation = %d", NUM_BATCHES_TILL_GRADIENT_ACCUMULATION)
+    logger.info("Batch size per device = %d", config["BATCH_SIZE"])
+    logger.info("Total train batch size with gradient accumulation) = %d", config["BATCH_SIZE"])
     logger.info("Total optimization steps = %d", total_optimization_steps)
 
     training_loss, logging_loss = 0.0, 0.0
@@ -204,41 +200,44 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             model.train()
             outputs = model(inputs, labels=labels)
             loss = outputs[0]
-            loss = loss / NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
             loss.backward()
 
             training_loss += loss.item()
-            if (step + 1) % NUM_BATCHES_TILL_GRADIENT_ACCUMULATION == 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+            clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
 
-                optimizer.step()
-                scheduler.step()
-                model.zero_grad()
-                global_step += 1
+            optimizer.step()
+            scheduler.step()
+            model.zero_grad()
+            global_step += 1
 
-                if LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
-                    if EVALUATE_DURING_TRAINING:
-                        results = evaluate(eval_dataset, model, tokenizer)
-                        for key, value in results.items():
-                            tb_writer.add_scalar("{}".format(key.capitalize()), value, global_step)
-                    tb_writer.add_scalar("Learning_Rate", scheduler.get_last_lr()[0], global_step)
-                    tb_writer.add_scalar("Training_Loss", (training_loss - logging_loss) / LOGGING_STEPS, global_step)
-                    logging_loss = training_loss
+            if LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
+                if EVALUATE_DURING_TRAINING:
+                    results = evaluate(config, eval_dataset, model, tokenizer)
+                    for key, value in results.items():
+                        tb_writer.add_scalar("{}".format(key.capitalize()), value, global_step)
+                tb_writer.add_scalar("Learning_Rate", scheduler.get_last_lr()[0], global_step)
+                tb_writer.add_scalar("Training_Loss", (training_loss - logging_loss) / LOGGING_STEPS, global_step)
+                logging_loss = training_loss
 
-                if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
-                    checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
-                    os.makedirs(checkpoint_output_dir, exist_ok=True)
-                    model_to_save = model.module if hasattr(model, "module") else model
-                    logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
-                    model_to_save.save_pretrained(checkpoint_output_dir)
-                    logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
-                    torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
-                    torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
-                    rotate_checkpoints()
+            if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
+                checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
+                os.makedirs(checkpoint_output_dir, exist_ok=True)
+                logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
+                model.save_pretrained(checkpoint_output_dir)
+                logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
+                torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
+                torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
+                rotate_checkpoints()
 
             if 0 < MAX_STEPS < global_step:
                 data_iterator.close()
                 break
+
+        validation_results = evaluate(config, eval_dataset, model, tokenizer)
+        if hyper_params_tuning:
+            tune.report(validation_loss=validation_results['validation_loss'],
+                        perplexity=validation_results['perplexity'])
+
         if 0 < MAX_STEPS < global_step:
             epochs.close()
             break
