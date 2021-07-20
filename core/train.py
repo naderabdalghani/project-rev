@@ -5,16 +5,17 @@ import re
 import shutil
 
 import torch
+from comet_ml import Experiment
 from ray import tune
-from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import RandomSampler, DataLoader, SequentialSampler
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
-from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, \
-    CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, EVALUATE_DURING_TRAINING, RESUME_TRAINING, MAX_GRAD_NORM
+from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, VALIDATION_LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, \
+    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM
+from keys import COMET_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +60,8 @@ def rotate_checkpoints(use_mtime=False):
         shutil.rmtree(checkpoint)
 
 
-def evaluate(config, dataset, model, tokenizer, silent=True):
-    if not os.path.exists(MODELS_DIR):
-        os.makedirs(MODELS_DIR, exist_ok=True)
-
+def evaluate(config, dataset, model, tokenizer, experiment=Experiment(api_key='dummy_key', disabled=True),
+             global_step=-1, silent=True):
     def collate(dialogues):
         if tokenizer.pad_token is None:
             return pad_sequence([x for x, _ in dialogues], batch_first=True), \
@@ -85,33 +84,43 @@ def evaluate(config, dataset, model, tokenizer, silent=True):
     valid_steps = 0
 
     with torch.no_grad():
-        for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", unit="batch", leave=True, position=2,
-                                   disable=silent):
-            inputs = inputs.detach().clone().to(DEVICE)
-            labels = labels.detach().clone().to(DEVICE)
+        with experiment.validate():
+            for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", unit="batch", leave=True, position=2,
+                                       disable=silent):
+                inputs = inputs.detach().clone().to(DEVICE)
+                labels = labels.detach().clone().to(DEVICE)
 
-            output = model(inputs, labels=labels)
-            valid_loss += output.loss.item()
-            valid_steps += 1
-            logits = output.logits
-            scores = torch.softmax(logits, dim=2)
-            batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
-            batch_prob[labels == 0] = 1
-            batch_prob = batch_prob.type(torch.float64)
-            batch_prob = batch_prob.prod(dim=1)
-            perplexity = torch.pow(batch_prob, -1 / labels.count_nonzero(dim=1))
+                output = model(inputs, labels=labels)
+                valid_loss += output.loss.item()
+                valid_steps += 1
+                logits = output.logits
+                scores = torch.softmax(logits, dim=2)
+                batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
+                batch_prob[labels == 0] = 1
+                batch_prob = batch_prob.type(torch.float64)
+                batch_prob = batch_prob.prod(dim=1)
+                perplexity = torch.pow(batch_prob, -1 / labels.count_nonzero(dim=1))
 
-            avg_perplexity = torch.mean(perplexity[perplexity.isfinite()])
-            if not avg_perplexity.isnan():
-                perplexities.append(avg_perplexity.item())
+                avg_perplexity = torch.mean(perplexity[perplexity.isfinite()])
+                if not avg_perplexity.isnan():
+                    perplexities.append(avg_perplexity.item())
+            results = {"perplexity": (sum(perplexities) / len(perplexities)),
+                       'validation_loss': valid_loss / valid_steps}
+            for key, value in results.items():
+                experiment.log_metric("{}".format(key.capitalize()), value, global_step)
 
     model.train()
 
-    return {"perplexity": (sum(perplexities) / len(perplexities)), 'validation_loss': valid_loss / valid_steps}
+    return results
 
 
 def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tuning=True):
-    tb_writer = SummaryWriter()
+    if COMET_API_KEY:
+        experiment = Experiment(api_key=COMET_API_KEY, project_name="Core Module", parse_args=False)
+    else:
+        experiment = Experiment(api_key='dummy_key', disabled=True)
+
+    experiment.log_parameters(config)
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
@@ -153,7 +162,7 @@ def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tu
 
     # Check if continuing training from a checkpoint
     checkpoint_path = get_checkpoint_path()
-    if checkpoint_path is not None and RESUME_TRAINING:
+    if checkpoint_path is not None and RESUME_TRAINING and not hyper_params_tuning:
         try:
             checkpoint_directory_suffix = checkpoint_path.split("-")[-1].split("/")[0]
             global_step = int(checkpoint_directory_suffix)
@@ -178,70 +187,62 @@ def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tu
     logger.info("Total train batch size with gradient accumulation) = %d", config["BATCH_SIZE"])
     logger.info("Total optimization steps = %d", total_optimization_steps)
 
-    training_loss, logging_loss = 0.0, 0.0
+    training_loss = 0.0
     model.zero_grad()
     epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0)
 
     for _ in epochs:
         data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1)
-        for step, (inputs, labels) in enumerate(data_iterator):
+        with experiment.train():
+            for step, (inputs, labels) in enumerate(data_iterator):
 
-            if steps_trained_in_current_epoch > 0:
-                steps_trained_in_current_epoch -= 1
-                continue
+                if steps_trained_in_current_epoch > 0:
+                    steps_trained_in_current_epoch -= 1
+                    continue
 
-            if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
-                continue
+                if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
+                    continue
 
-            inputs = inputs.detach().clone().to(DEVICE)
-            labels = labels.detach().clone().to(DEVICE)
+                inputs = inputs.detach().clone().to(DEVICE)
+                labels = labels.detach().clone().to(DEVICE)
 
-            labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
-            model.train()
-            outputs = model(inputs, labels=labels)
-            loss = outputs[0]
-            loss.backward()
+                labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
+                model.train()
+                outputs = model(inputs, labels=labels)
+                loss = outputs[0]
+                loss.backward()
 
-            training_loss += loss.item()
-            clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+                training_loss += loss.item()
+                clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
 
-            optimizer.step()
-            scheduler.step()
-            model.zero_grad()
-            global_step += 1
+                optimizer.step()
+                scheduler.step()
+                model.zero_grad()
+                global_step += 1
 
-            if LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
-                if EVALUATE_DURING_TRAINING:
-                    results = evaluate(config, eval_dataset, model, tokenizer)
-                    for key, value in results.items():
-                        tb_writer.add_scalar("{}".format(key.capitalize()), value, global_step)
-                tb_writer.add_scalar("Learning_Rate", scheduler.get_last_lr()[0], global_step)
-                tb_writer.add_scalar("Training_Loss", (training_loss - logging_loss) / LOGGING_STEPS, global_step)
-                logging_loss = training_loss
+                experiment.log_metric("learning_rate", scheduler.get_last_lr()[0], global_step)
+                experiment.log_metric("training_loss", loss.item(), global_step)
 
-            if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
-                checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
-                os.makedirs(checkpoint_output_dir, exist_ok=True)
-                logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
-                model.save_pretrained(checkpoint_output_dir)
-                logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
-                torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
-                torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
-                rotate_checkpoints()
+                if VALIDATION_LOGGING_STEPS > 0 and global_step % VALIDATION_LOGGING_STEPS == 0:
+                    results = evaluate(config, eval_dataset, model, tokenizer, experiment, global_step)
+                    if hyper_params_tuning:
+                        tune.report(validation_loss=results['validation_loss'],
+                                    perplexity=results['perplexity'])
 
-            if 0 < MAX_STEPS < global_step:
-                data_iterator.close()
-                break
+                if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0 and not hyper_params_tuning:
+                    checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
+                    os.makedirs(checkpoint_output_dir, exist_ok=True)
+                    logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
+                    model.save_pretrained(checkpoint_output_dir)
+                    logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
+                    torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
+                    torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
+                    rotate_checkpoints()
 
-        validation_results = evaluate(config, eval_dataset, model, tokenizer)
-        if hyper_params_tuning:
-            tune.report(validation_loss=validation_results['validation_loss'],
-                        perplexity=validation_results['perplexity'])
+                if 0 < MAX_STEPS < global_step:
+                    data_iterator.close()
+                    break
 
-        if 0 < MAX_STEPS < global_step:
-            epochs.close()
-            break
-
-    tb_writer.close()
+    experiment.end()
 
     return global_step, (training_loss / global_step), model

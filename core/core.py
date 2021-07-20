@@ -12,8 +12,8 @@ from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 
 from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, BAD_WORDS, \
-    SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, GPUS_PER_TRIAL, CPUS_PER_TRIAL, MAX_NUM_EPOCHS, MIN_NUM_EPOCHS, \
-    CUDA, DEFAULT_HYPER_PARAMS, AVOID_BAD_WORDS, HYPER_PARAMS_TUNING
+    SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_EPOCHS, MIN_NUM_EPOCHS, CUDA, DEFAULT_HYPER_PARAMS, \
+    AVOID_BAD_WORDS, HYPER_PARAMS_TUNING
 from exceptions import CoreModelNotTrained
 from preprocessing import ConversationDataset
 from train import train, evaluate
@@ -120,8 +120,9 @@ def main():
                 metric_columns=["validation_loss", "perplexity", "training_iteration"]
             )
             result = tune.run(
-                partial(train, train_dataset=train_dataset, eval_dataset=eval_dataset, model=model, tokenizer=tokenizer),
-                resources_per_trial={"cpu": CPUS_PER_TRIAL, "gpu": GPUS_PER_TRIAL},
+                partial(train, train_dataset=train_dataset, eval_dataset=eval_dataset,
+                        model=model, tokenizer=tokenizer),
+                resources_per_trial={"cpu": 1, "gpu": 1},
                 config=HYPER_PARAMS,
                 num_samples=NUM_SAMPLES,
                 scheduler=scheduler,

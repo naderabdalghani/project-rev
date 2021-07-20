@@ -4,4 +4,5 @@ Flask>=2.0.1
 torch>=1.9.0
 transformers>=4.8.2
 tqdm>=4.61.2
-tensorboardX>=2.4
+ray>=1.4.1
+comet_ml>=3.13.1
