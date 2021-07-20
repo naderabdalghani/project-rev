@@ -1,5 +1,7 @@
-import torch
 import logging
+import os.path
+
+import torch
 
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
 MODELS_DIR = '..\models'
@@ -19,10 +21,11 @@ MAX_GRAD_NORM = 1.0
 NUM_TRAIN_EPOCHS = 3
 MAX_STEPS = -1  # If > 0, sets total number of training steps to perform. Overrides NUM_TRAIN_EPOCHS
 WARMUP_STEPS = 0
-LOGGING_STEPS = 2
-SAVE_STEPS = 2
+LOGGING_STEPS = 50
+SAVE_STEPS = 500
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
 OVERWRITE_CACHE = False
+RESUME_TRAINING = False
 LOCAL_RANK = -1  # Distributed training local rank of process. -1 implies no distributed training
 CUDA = torch.cuda.is_available()
 if LOCAL_RANK != -1:
@@ -38,7 +41,7 @@ FP16 = False  # Whether to use 16-bit (mixed) precision training through NVIDIA 
 FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']
 BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
-with open("D:\Projects\project-rev\data\BAD_WORDS.txt", "r") as f:
+with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
     BAD_WORDS = f.read().splitlines()
 DATASET_FILENAME = 'HIMYM_DATASET.txt'
 NO_DECAY_PARAMS_NAMES = ["bias", "ln"]

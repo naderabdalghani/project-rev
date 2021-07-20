@@ -1,9 +1,11 @@
 import logging
 import os
 import pickle
+
 import torch
 from torch.utils.data import Dataset
-from .config import CACHE_DIR, OVERWRITE_CACHE, DATASET_FILENAME, DATA_DIR, BOT_TOKEN
+
+from config import CACHE_DIR, OVERWRITE_CACHE, DATASET_FILENAME, DATA_DIR, BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ def remove_prefix(input_string, prefix):
 
 class ConversationDataset(Dataset):
     def __init__(self, tokenizer):
-        cached_features_file = os.path.join(CACHE_DIR,  DATASET_FILENAME + "_CACHED_FEATURES")
+        cached_features_file = os.path.join(CACHE_DIR,  os.path.splitext(DATASET_FILENAME)[0] + "_CACHED_FEATURES")
         if os.path.exists(cached_features_file) and not OVERWRITE_CACHE:
             logger.info("Loading extracted features from cached file {}".format(cached_features_file))
             with open(cached_features_file, "rb") as cached_file:

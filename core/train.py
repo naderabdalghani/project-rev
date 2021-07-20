@@ -5,16 +5,17 @@ import re
 import shutil
 
 import torch
+from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import RandomSampler, DataLoader, SequentialSampler, DistributedSampler
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import trange, tqdm
-from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotConfig, BlenderbotForConditionalGeneration
+from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
-from .config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
+from config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
     LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, FP16, N_GPUS, LOCAL_RANK, \
     PER_GPU_TRAIN_BATCH_SIZE, FP16_OPT_LEVEL, DEVICE, MAX_GRAD_NORM, LOGGING_STEPS, EVALUATE_DURING_TRAINING, \
-    MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE
+    MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE, \
+    RESUME_TRAINING
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,8 @@ def evaluate(dataset, model, tokenizer, silent=True):
     perplexities = []
 
     with torch.no_grad():
-        for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", leave=True, position=0, disable=silent):
+        for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", unit="batch", leave=True, position=2,
+                                   disable=silent):
             inputs = inputs.detach().clone().to(DEVICE)
             labels = labels.detach().clone().to(DEVICE)
 
@@ -154,7 +156,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
 
     # Check if continuing training from a checkpoint
     checkpoint_path = get_checkpoint_path()
-    if checkpoint_path is not None:
+    if checkpoint_path is not None and RESUME_TRAINING:
         try:
             checkpoint_directory_suffix = checkpoint_path.split("-")[-1].split("/")[0]
             global_step = int(checkpoint_directory_suffix)
@@ -165,9 +167,8 @@ def train(train_dataset, eval_dataset, model, tokenizer):
                         checkpoint_path)
             optimizer.load_state_dict(torch.load(os.path.join(checkpoint_path, "optimizer.pt")))
             scheduler.load_state_dict(torch.load(os.path.join(checkpoint_path, "scheduler.pt")))
-            logger.info("Loading saved model and its config from checkpoint path %s", checkpoint_path)
-            model_config = BlenderbotConfig.from_pretrained(checkpoint_path)
-            model = BlenderbotForConditionalGeneration.from_pretrained(checkpoint_path, config=model_config)
+            logger.info("Loading saved model from checkpoint path %s", checkpoint_path)
+            model = BlenderbotForConditionalGeneration.from_pretrained(checkpoint_path)
             logger.info("Continuing training from checkpoint, will skip to saved global_step")
             logger.info("Continuing training from epoch %d", epochs_trained)
             logger.info("Continuing training from global step %d", global_step)
@@ -195,9 +196,9 @@ def train(train_dataset, eval_dataset, model, tokenizer):
     logger.info("***** Training Model *****")
     logger.info("Number of dialogues = %d", len(train_dataset))
     logger.info("Number of epochs = %d", num_of_epochs)
-    logger.info("Batch size per GPU = %d", PER_GPU_TRAIN_BATCH_SIZE)
+    logger.info("Batch size per device = %d", PER_GPU_TRAIN_BATCH_SIZE)
     logger.info(
-        "Total train batch size (w. parallel, distributed & accumulation) = %d",
+        "Total train batch size (w. parallelization, distribution & accumulation) = %d",
         TRAIN_BATCH_SIZE
         * NUM_BATCHES_TILL_GRADIENT_ACCUMULATION
         * (torch.distributed.get_world_size() if LOCAL_RANK != -1 else 1),
@@ -207,11 +208,12 @@ def train(train_dataset, eval_dataset, model, tokenizer):
 
     training_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
-    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", disable=LOCAL_RANK not in [-1, 0], leave=True,
-                    position=0)
+    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0,
+                    disable=LOCAL_RANK not in [-1, 0])
 
     for _ in epochs:
-        data_iterator = tqdm(train_dataloader, desc="Epoch", disable=LOCAL_RANK not in [-1, 0], leave=True, position=1)
+        data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1,
+                             disable=LOCAL_RANK not in [-1, 0])
         for step, (inputs, labels) in enumerate(data_iterator):
 
             if steps_trained_in_current_epoch > 0:
@@ -246,6 +248,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
                     torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), MAX_GRAD_NORM)
                 else:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+
                 optimizer.step()
                 scheduler.step()
                 model.zero_grad()
@@ -281,4 +284,4 @@ def train(train_dataset, eval_dataset, model, tokenizer):
     if LOCAL_RANK in [-1, 0]:
         tb_writer.close()
 
-    return global_step, training_loss / global_step, model
+    return global_step, (training_loss / global_step), model

@@ -5,12 +5,13 @@ import re
 
 import torch
 from torch.utils.data import random_split
-from transformers import BlenderbotTokenizer, BlenderbotConfig, BlenderbotForConditionalGeneration
-from .train import train, evaluate
-from .preprocessing import ConversationDataset
-from .config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN,\
+from transformers import BlenderbotTokenizer, BlenderbotForConditionalGeneration
+
+from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, LOCAL_RANK, N_GPUS, FP16, DO_TRAIN, \
     EVAL_DATA_SPLIT_RATIO, DO_EVAL, SAVED_INSTANCE_PREFIX, BAD_WORDS
 from exceptions import CoreModelNotTrained
+from preprocessing import ConversationDataset
+from train import train, evaluate
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -35,6 +36,7 @@ def update_chat_history(tokenizer, new_input_ids, from_bot=False):
         return new_input_ids
 
 
+@torch.no_grad()
 def get_bot_response_as_text(user_utterance):
     global saved_instance_path, loaded_model, loaded_tokenizer, chat_history
     if saved_instance_path is None:
@@ -43,6 +45,7 @@ def get_bot_response_as_text(user_utterance):
             raise CoreModelNotTrained()
     if loaded_model is None or loaded_tokenizer is None:
         loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
+        loaded_model.eval()
 
     new_user_input_ids = loaded_tokenizer.encode(user_utterance, truncation=True, return_tensors='pt').to(DEVICE)
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
@@ -54,8 +57,7 @@ def get_bot_response_as_text(user_utterance):
 
 def load_saved_instance(path):
     global bad_words_ids
-    model_config = BlenderbotConfig.from_pretrained(path)
-    model = BlenderbotForConditionalGeneration.from_pretrained(path, config=model_config).to(DEVICE)
+    model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
     bad_words_ids = [tokenizer(bad_word, add_prefix_space=True, add_special_tokens=False).input_ids
                      for bad_word in BAD_WORDS]
@@ -99,9 +101,8 @@ def main():
     global saved_instance_path
     saved_instance_path = get_saved_instance_path()
     if DO_TRAIN or (DO_EVAL and saved_instance_path is None):
-        model_config = BlenderbotConfig.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
-        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, config=model_config,
-                                                                   cache_dir=CACHE_DIR).to(DEVICE)
+        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR)\
+            .to(DEVICE)
     else:
         model, tokenizer = load_saved_instance(saved_instance_path)
 
