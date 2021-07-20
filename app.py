@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from utilities.config import DEBUG, BOT_NAME
+from config import DEBUG, BOT_NAME
 from core.core import get_bot_response_as_text
 
 app = Flask(__name__)

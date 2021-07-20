@@ -7,23 +7,19 @@ import shutil
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import RandomSampler, DataLoader, SequentialSampler, DistributedSampler
-
-try:
-    from torch.utils.tensorboard import SummaryWriter
-except ImportError:
-    from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotConfig, BlenderbotForConditionalGeneration
 
-from utilities.config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
+from .config import TRAIN_BATCH_SIZE, MAX_STEPS, NUM_BATCHES_TILL_GRADIENT_ACCUMULATION, NUM_TRAIN_EPOCHS, \
     LEARNING_RATE, ADAM_EPSILON, WARMUP_STEPS, NO_DECAY_PARAMS_NAMES, FP16, N_GPUS, LOCAL_RANK, \
     PER_GPU_TRAIN_BATCH_SIZE, FP16_OPT_LEVEL, DEVICE, MAX_GRAD_NORM, LOGGING_STEPS, EVALUATE_DURING_TRAINING, \
-    OUTPUT_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE
+    MODELS_DIR, SAVE_STEPS, MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, WEIGHT_DECAY, EVAL_BATCH_SIZE
 
 logger = logging.getLogger(__name__)
 
 
-def get_most_recent_checkpoint_path(use_mtime=False):
+def get_checkpoint_path(use_mtime=False):
     sorted_checkpoints = sort_checkpoints(use_mtime)
     if len(sorted_checkpoints) < 1:
         return None
@@ -33,7 +29,7 @@ def get_most_recent_checkpoint_path(use_mtime=False):
 def sort_checkpoints(use_mtime=False):
     checkpoints = []
 
-    checkpoints_paths = glob.glob(os.path.join(OUTPUT_DIR, "{}-*".format(CHECKPOINT_PREFIX)))
+    checkpoints_paths = glob.glob(os.path.join(MODELS_DIR, "{}-*".format(CHECKPOINT_PREFIX)))
 
     for path in checkpoints_paths:
         if use_mtime:
@@ -58,20 +54,21 @@ def rotate_checkpoints(use_mtime=False):
     number_of_checkpoints_to_delete = max(0, len(checkpoints_sorted) - MAX_CHECKPOINTS)
     checkpoints_to_be_deleted = checkpoints_sorted[:number_of_checkpoints_to_delete]
     for checkpoint in checkpoints_to_be_deleted:
-        logger.info("Deleting older checkpoint [{}] due to SAVE_TOTAL_LIMIT".format(checkpoint))
+        logger.info("Deleting older checkpoint [{}] due to exceeding SAVE_TOTAL_LIMIT: {}".format(checkpoint,
+                                                                                                  MAX_CHECKPOINTS))
         shutil.rmtree(checkpoint)
 
 
 def evaluate(dataset, model, tokenizer, silent=True):
-    if not os.path.exists(OUTPUT_DIR) and LOCAL_RANK in [-1, 0]:
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
+    if not os.path.exists(MODELS_DIR) and LOCAL_RANK in [-1, 0]:
+        os.makedirs(MODELS_DIR, exist_ok=True)
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
             return pad_sequence([x for x, _ in dialogues], batch_first=True), \
                    pad_sequence([y for _, y in dialogues], batch_first=True)
         return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
-               pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
+            pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = SequentialSampler(dataset) if LOCAL_RANK == -1 else DistributedSampler(dataset)
     eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=EVAL_BATCH_SIZE, collate_fn=collate)
@@ -80,9 +77,9 @@ def evaluate(dataset, model, tokenizer, silent=True):
         model = torch.nn.DataParallel(model)
 
     if not silent:
-      logger.info("***** Running Evaluation *****")
-      logger.info("Number of dialogues = %d", len(dataset))
-      logger.info("Batch size = %d", EVAL_BATCH_SIZE)
+        logger.info("***** Running Evaluation *****")
+        logger.info("Number of dialogues = %d", len(dataset))
+        logger.info("Batch size = %d", EVAL_BATCH_SIZE)
 
     model.eval()
 
@@ -120,7 +117,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
             return pad_sequence([x for x, _ in dialogues], batch_first=True), \
                    pad_sequence([y for _, y in dialogues], batch_first=True)
         return pad_sequence([x for x, _ in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id), \
-               pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
+            pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = RandomSampler(train_dataset) if LOCAL_RANK == -1 else DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=TRAIN_BATCH_SIZE, collate_fn=collate)
@@ -156,7 +153,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
     steps_trained_in_current_epoch = 0
 
     # Check if continuing training from a checkpoint
-    checkpoint_path = get_most_recent_checkpoint_path()
+    checkpoint_path = get_checkpoint_path()
     if checkpoint_path is not None:
         try:
             checkpoint_directory_suffix = checkpoint_path.split("-")[-1].split("/")[0]
@@ -264,7 +261,7 @@ def train(train_dataset, eval_dataset, model, tokenizer):
                     logging_loss = training_loss
 
                 if LOCAL_RANK in [-1, 0] and SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0:
-                    checkpoint_output_dir = os.path.join(OUTPUT_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
+                    checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
                     os.makedirs(checkpoint_output_dir, exist_ok=True)
                     model_to_save = model.module if hasattr(model, "module") else model
                     logger.info("Saving model checkpoint to %s", checkpoint_output_dir)

@@ -149,5 +149,6 @@ fabric.properties
 
 # Project Custom
 cache/
-output/
+models/
+data/
 core/runs/

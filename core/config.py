@@ -1,13 +1,10 @@
 import torch
 import logging
 
-# Core module
-OUTPUT_DIR = '.\output'  # Relative to the main file (entry script)
-CACHE_DIR = '.\cache'  # Relative to the main file (entry script)
-MODEL_TYPE = 'blenderbot'
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
-MODEL_CONFIG_NAME = 'facebook/blenderbot-400M-distill'
-TOKENIZER_NAME = 'facebook/blenderbot-400M-distill'
+MODELS_DIR = '..\models'
+CACHE_DIR = '..\cache'
+DATA_DIR = '..\data'
 DO_TRAIN = True
 DO_EVAL = True
 EVALUATE_DURING_TRAINING = False
@@ -39,24 +36,18 @@ TRAIN_BATCH_SIZE = PER_GPU_TRAIN_BATCH_SIZE * max(1, N_GPUS)
 EVAL_BATCH_SIZE = PER_GPU_EVAL_BATCH_SIZE * max(1, N_GPUS)
 FP16 = False  # Whether to use 16-bit (mixed) precision training through NVIDIA apex
 FP16_OPT_LEVEL = 'O1'  # Apex fp16 training AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']
-# See details at https://nvidia.github.io/apex/amp.html"
 BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
-BOT_NAME = 'Ted'
-BAD_WORDS = ["sex", "bastard", "vagina", "fucking", "fuck", "fucked", "motherfucker", "bitch", "dick"]
-DATASET_FILENAME = 'dataset.txt'
+with open("D:\Projects\project-rev\data\BAD_WORDS.txt", "r") as f:
+    BAD_WORDS = f.read().splitlines()
+DATASET_FILENAME = 'HIMYM_DATASET.txt'
 NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
-CHECKPOINT_PREFIX = "checkpoint"
-SAVED_INSTANCE_PREFIX = "saved"
-LOSS_FN_IGNORE_INDEX = -100  # A target label value that is ignored by the model loss function and does not
-# contribute to the input gradient
+CHECKPOINT_PREFIX = "core-checkpoint"
+SAVED_INSTANCE_PREFIX = "core-model"
+LOSS_FN_IGNORE_INDEX = -100
 
-# Logging
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
     level=logging.INFO if LOCAL_RANK in [-1, 0] else logging.WARN,
 )
-
-# Flask
-DEBUG = True

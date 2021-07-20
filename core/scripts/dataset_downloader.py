@@ -3,12 +3,12 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import re
-from utilities.config import OUTPUT_DIR, BOT_TOKEN, USER_TOKEN, DATASET_FILENAME
+from ..config import MODELS_DIR, BOT_TOKEN, USER_TOKEN, DATASET_FILENAME
 
 SOURCE = 'https://transcripts.foreverdreaming.org'
 CHOSEN_CHARACTER = ['Ted', 'Narrator']
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, DATASET_FILENAME)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_FILE = os.path.join(MODELS_DIR, DATASET_FILENAME)
+os.makedirs(MODELS_DIR, exist_ok=True)
 open(OUTPUT_FILE, 'w+', encoding='utf-8').close()
 
 
