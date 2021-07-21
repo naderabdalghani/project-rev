@@ -318,4 +318,9 @@ if __name__ == '__main__':
     corrections.append(correct)
     correct = ACM.auto_correction_model("i wont a cake")
     corrections.append(correct)
+    correct = ACM.auto_correction_model("i like football and basketball")
+    corrections.append(correct)
+    correct = ACM.auto_correction_model("do you now robin")
+    corrections.append(correct)
+    x=1
 
