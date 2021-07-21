@@ -288,6 +288,15 @@ class LanguageModel(object):
                 prob1 = self.estimate_probability(sentence_to_check[i + 2], sentence_to_check[i:i+2], tri, k)
             prob = prob + np.log(prob1)
 
+    def calculate_perplexity(self, test_data_processed):
+        preplexity = 0.0
+        for i, sentence in enumerate(test_data_processed):
+            preplexity += self.estimate_sentence_probability(sentence, tri=True, k=.001)
+            if i % 100000 == 0:
+                print(str(i) + " sentences are completed")
+        preplexity = preplexity / float(len(test_data_processed))
+        print(preplexity)
+
 
 if __name__ == '__main__':
 
