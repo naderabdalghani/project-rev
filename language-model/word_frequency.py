@@ -1,5 +1,6 @@
 
-import json
+
+import pickle
 from collections import Counter
 import string
 from utils import _parse_into_words, load_file
@@ -90,8 +91,7 @@ class WordFrequency(object):
         """ Iterator over the words in the dictionary
             Yields:
                 str: The next word in the dictionary
-            Note:
-                This is the same as `spellchecker.keys()` """
+          """
         for word in self._dictionary.keys():
             yield word
 
@@ -110,11 +110,8 @@ class WordFrequency(object):
             Args:
                 filename (str): The filepath to the json (optionally gzipped) \
                 file to be loaded """
-        with load_file(filename) as data:
-            data = data.read()
-            data = data.lower()
-            self._dictionary.update(json.loads(data))
-            self._update_dictionary()
+        self._dictionary.update(pickle.load(open(filename, 'rb')))
+        self._update_dictionary()
 
     def remove_by_threshold(self, threshold=5):
         """ Remove all words at, or below, the provided threshold
@@ -133,6 +130,7 @@ class WordFrequency(object):
         self._unique_words = len(self._dictionary.keys())
         self._letters = set()
         for key in self._dictionary:
-            if len(key) > self._longest_word_length:
-                self._longest_word_length = len(key)
-            self._letters.update(string.ascii_lowercase)
+            if len(key[0]) > self._longest_word_length:
+                self._longest_word_length = len(key[0])
+                self._longest_word = key[0]
+        self._letters.update(string.ascii_lowercase)
