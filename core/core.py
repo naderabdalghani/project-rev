@@ -4,19 +4,21 @@ import os
 import re
 from functools import partial
 
+from comet_ml import Experiment
 import torch
 from torch.utils.data import random_split
 from transformers import BlenderbotTokenizer, BlenderbotForConditionalGeneration
-from ray import tune
+import ray
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.suggest import BasicVariantGenerator
 
-from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, EVAL_DATA_SPLIT_RATIO, DO_EVAL, BAD_WORDS, \
-    SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_EPOCHS, MIN_NUM_EPOCHS, CUDA, DEFAULT_HYPER_PARAMS, \
+from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, \
+    SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, CUDA, DEFAULT_HYPER_PARAMS, \
     AVOID_BAD_WORDS, HYPER_PARAMS_TUNING
 from exceptions import CoreModelNotTrained
 from preprocessing import ConversationDataset
-from train import train, evaluate
+from train import train, validate
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -92,8 +94,8 @@ def get_saved_instance_path(use_mtime=False):
 def load_datasets(tokenizer):
     dataset = ConversationDataset(tokenizer)
     dataset_len = len(dataset)
-    datasets_lengths = [dataset_len - int(dataset_len * EVAL_DATA_SPLIT_RATIO),
-                        int(dataset_len * EVAL_DATA_SPLIT_RATIO)]
+    datasets_lengths = [dataset_len - int(dataset_len * VALID_DATA_SPLIT_RATIO),
+                        int(dataset_len * VALID_DATA_SPLIT_RATIO)]
     return random_split(dataset, datasets_lengths)
 
 
@@ -101,32 +103,27 @@ def main():
     logger.info("Running on GPU" if CUDA else "Running on CPU")
 
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
-    train_dataset, eval_dataset = load_datasets(tokenizer)
+    train_dataset, valid_dataset = load_datasets(tokenizer)
 
     hyper_params = DEFAULT_HYPER_PARAMS
 
     if DO_TRAIN:
         if HYPER_PARAMS_TUNING:
-            model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR) \
-                .to(DEVICE)
+            ray.init(include_dashboard=False)
             scheduler = ASHAScheduler(
                 metric="perplexity",
                 mode="min",
-                max_t=MAX_NUM_EPOCHS,
-                grace_period=MIN_NUM_EPOCHS
+                max_t=MAX_NUM_STEPS,
+                grace_period=MIN_NUM_STEPS
             )
-            reporter = CLIReporter(
-                parameter_columns=HYPER_PARAMS.keys(),
-                metric_columns=["validation_loss", "perplexity", "training_iteration"]
-            )
-            result = tune.run(
-                partial(train, train_dataset=train_dataset, eval_dataset=eval_dataset,
-                        model=model, tokenizer=tokenizer),
-                resources_per_trial={"cpu": 1, "gpu": 1},
+            result = ray.tune.run(
+                partial(train, train_dataset=train_dataset, valid_dataset=valid_dataset, tokenizer=tokenizer),
+                resources_per_trial={"cpu": 4, "gpu": 1},
                 config=HYPER_PARAMS,
                 num_samples=NUM_SAMPLES,
                 scheduler=scheduler,
-                progress_reporter=reporter
+                search_alg=BasicVariantGenerator(max_concurrent=1),
+                verbose=0
             )
             best_trial = result.get_best_trial("perplexity", "min", "last")
             logger.info("Best trial config: {}".format(best_trial.config))
@@ -135,20 +132,22 @@ def main():
 
             hyper_params = best_trial.config
 
-        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR) \
-            .to(DEVICE)
-        total_number_of_steps, training_loss, model = train(hyper_params, train_dataset, eval_dataset, model, tokenizer,
-                                                            hyper_params_tuning=False)
+        total_number_of_steps, training_loss, model, valid_results = train(hyper_params, train_dataset, valid_dataset,
+                                                                           tokenizer, hyper_params_tuning=False)
 
         saved_instance_output_dir = os.path.join(MODELS_DIR, "{}-{}-{}".format(SAVED_INSTANCE_PREFIX,
                                                                                total_number_of_steps,
-                                                                               training_loss))
+                                                                               training_loss
+                                                                               ))
         os.makedirs(saved_instance_output_dir, exist_ok=True)
-        model_to_save = model.module if hasattr(model, "module") else model
         logger.info("Saving trained model instance to %s", saved_instance_output_dir)
-        model_to_save.save_pretrained(saved_instance_output_dir)
+        model.save_pretrained(saved_instance_output_dir)
 
-    if DO_EVAL:
+        logger.info("***** Validation Result *****")
+        for key in valid_results.keys():
+            logger.info("%s = %s", key, str(valid_results[key]))
+
+    elif DO_VALID:
         global saved_instance_path
         saved_instance_path = get_saved_instance_path()
         if saved_instance_path is None:
@@ -156,8 +155,8 @@ def main():
                 .to(DEVICE)
         else:
             model, tokenizer = load_saved_instance(saved_instance_path)
-        result = evaluate(hyper_params, eval_dataset, model, tokenizer, silent=False)
-        logger.info("***** Evaluation Result *****")
+        result = validate(hyper_params, valid_dataset, model, tokenizer, silent=False)
+        logger.info("***** Validation Result *****")
         for key in result.keys():
             logger.info("%s = %s", key, str(result[key]))
 

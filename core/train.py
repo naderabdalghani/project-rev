@@ -4,17 +4,17 @@ import os
 import re
 import shutil
 
-import torch
 from comet_ml import Experiment
+import torch
 from ray import tune
-from torch.nn.utils.rnn import pad_sequence
 from torch.nn.utils import clip_grad_norm_
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import RandomSampler, DataLoader, SequentialSampler
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
 from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, VALIDATION_LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, \
-    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM
+    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM, MODEL_NAME, CACHE_DIR
 from keys import COMET_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def rotate_checkpoints(use_mtime=False):
         shutil.rmtree(checkpoint)
 
 
-def evaluate(config, dataset, model, tokenizer, experiment=Experiment(api_key='dummy_key', disabled=True),
+def validate(config, dataset, model, tokenizer, experiment=Experiment(api_key='dummy_key', disabled=True),
              global_step=-1, silent=True):
     def collate(dialogues):
         if tokenizer.pad_token is None:
@@ -70,10 +70,10 @@ def evaluate(config, dataset, model, tokenizer, experiment=Experiment(api_key='d
             pad_sequence([y for _, y in dialogues], batch_first=True, padding_value=tokenizer.pad_token_id)
 
     sampler = SequentialSampler(dataset)
-    eval_dataloader = DataLoader(dataset, sampler=sampler, batch_size=config["BATCH_SIZE"], collate_fn=collate)
+    valid_dataloader = DataLoader(dataset, sampler=sampler, batch_size=config["BATCH_SIZE"], collate_fn=collate)
 
     if not silent:
-        logger.info("***** Running Evaluation *****")
+        logger.info("***** Running Validation *****")
         logger.info("Number of dialogues = %d", len(dataset))
         logger.info("Batch size = %d", config["BATCH_SIZE"])
 
@@ -84,43 +84,47 @@ def evaluate(config, dataset, model, tokenizer, experiment=Experiment(api_key='d
     valid_steps = 0
 
     with torch.no_grad():
-        with experiment.validate():
-            for inputs, labels in tqdm(eval_dataloader, desc="Evaluation", unit="batch", leave=True, position=2,
-                                       disable=silent):
-                inputs = inputs.detach().clone().to(DEVICE)
-                labels = labels.detach().clone().to(DEVICE)
+        for inputs, labels in tqdm(valid_dataloader, desc="Validation", unit="batch", leave=True, position=2,
+                                   disable=silent):
+            inputs = inputs.detach().clone().to(DEVICE)
+            labels = labels.detach().clone().to(DEVICE)
 
-                output = model(inputs, labels=labels)
-                valid_loss += output.loss.item()
-                valid_steps += 1
-                logits = output.logits
-                scores = torch.softmax(logits, dim=2)
-                batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
-                batch_prob[labels == 0] = 1
-                batch_prob = batch_prob.type(torch.float64)
-                batch_prob = batch_prob.prod(dim=1)
-                perplexity = torch.pow(batch_prob, -1 / labels.count_nonzero(dim=1))
+            output = model(inputs, labels=labels)
+            valid_loss += output.loss.item()
+            valid_steps += 1
+            logits = output.logits
+            scores = torch.softmax(logits, dim=2)
+            batch_prob = torch.gather(scores, index=labels.unsqueeze(dim=2), dim=2).squeeze(dim=2)
+            batch_prob[labels == 0] = 1
+            batch_prob = batch_prob.type(torch.float64)
+            batch_prob = batch_prob.prod(dim=1)
+            perplexity = torch.pow(batch_prob, -1 / labels.count_nonzero(dim=1))
 
-                avg_perplexity = torch.mean(perplexity[perplexity.isfinite()])
-                if not avg_perplexity.isnan():
-                    perplexities.append(avg_perplexity.item())
-            results = {"perplexity": (sum(perplexities) / len(perplexities)),
-                       'validation_loss': valid_loss / valid_steps}
-            for key, value in results.items():
-                experiment.log_metric("{}".format(key.capitalize()), value, global_step)
+            avg_perplexity = torch.mean(perplexity[perplexity.isfinite()])
+            if not avg_perplexity.isnan():
+                perplexities.append(avg_perplexity.item())
+        results = {"perplexity": (sum(perplexities) / len(perplexities)),
+                   'validation_loss': valid_loss / valid_steps}
+        for key, value in results.items():
+            experiment.log_metric("{}".format(key), value, global_step)
 
     model.train()
 
     return results
 
 
-def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tuning=True):
+def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=True):
+    if hyper_params_tuning:
+        tune.utils.wait_for_gpu()
     if COMET_API_KEY:
         experiment = Experiment(api_key=COMET_API_KEY, project_name="Core Module", parse_args=False)
     else:
         experiment = Experiment(api_key='dummy_key', disabled=True)
 
     experiment.log_parameters(config)
+
+    model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR) \
+        .to(DEVICE)
 
     def collate(dialogues):
         if tokenizer.pad_token is None:
@@ -181,68 +185,78 @@ def train(config, train_dataset, eval_dataset, model, tokenizer, hyper_params_tu
             logger.info("Starting fine-tuning...")
 
     logger.info("***** Training Model *****")
-    logger.info("Number of dialogues = %d", len(train_dataset))
-    logger.info("Number of epochs = %d", num_of_epochs)
-    logger.info("Batch size per device = %d", config["BATCH_SIZE"])
-    logger.info("Total train batch size with gradient accumulation) = %d", config["BATCH_SIZE"])
-    logger.info("Total optimization steps = %d", total_optimization_steps)
+    logger.info("Number of dialogues = {}".format(len(train_dataset)))
+    logger.info("Batch size = {}".format(config["BATCH_SIZE"]))
+    logger.info("Learning rate = {}".format(config["LEARNING_RATE"]))
+    logger.info("Weight decay = {}".format(config["WEIGHT_DECAY"]))
+    logger.info("Warmup steps = {}".format(config["WARMUP_STEPS"]))
+    logger.info("Number of epochs = {}".format(num_of_epochs))
+    logger.info("Total optimization steps = {}".format(total_optimization_steps))
 
     training_loss = 0.0
     model.zero_grad()
-    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0)
+    epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0,
+                    disable=hyper_params_tuning)
 
     for _ in epochs:
-        data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1)
-        with experiment.train():
-            for step, (inputs, labels) in enumerate(data_iterator):
+        data_iterator = tqdm(train_dataloader, desc="Training epoch", unit="batch", leave=True, position=1,
+                             disable=hyper_params_tuning)
+        for step, (inputs, labels) in enumerate(data_iterator):
 
-                if steps_trained_in_current_epoch > 0:
-                    steps_trained_in_current_epoch -= 1
-                    continue
+            if steps_trained_in_current_epoch > 0:
+                steps_trained_in_current_epoch -= 1
+                continue
 
-                if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
-                    continue
+            if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
+                continue
 
-                inputs = inputs.detach().clone().to(DEVICE)
-                labels = labels.detach().clone().to(DEVICE)
+            inputs = inputs.detach().clone().to(DEVICE)
+            labels = labels.detach().clone().to(DEVICE)
 
-                labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
-                model.train()
-                outputs = model(inputs, labels=labels)
-                loss = outputs[0]
-                loss.backward()
+            labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
+            model.train()
+            outputs = model(inputs, labels=labels)
+            loss = outputs[0]
+            loss.backward()
 
-                training_loss += loss.item()
-                clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
+            training_loss += loss.item()
+            clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
 
-                optimizer.step()
-                scheduler.step()
-                model.zero_grad()
-                global_step += 1
+            optimizer.step()
+            scheduler.step()
+            model.zero_grad()
+            global_step += 1
 
-                experiment.log_metric("learning_rate", scheduler.get_last_lr()[0], global_step)
-                experiment.log_metric("training_loss", loss.item(), global_step)
+            experiment.log_metric("learning_rate", scheduler.get_last_lr()[0], global_step)
+            experiment.log_metric("training_loss", loss.item(), global_step)
 
-                if VALIDATION_LOGGING_STEPS > 0 and global_step % VALIDATION_LOGGING_STEPS == 0:
-                    results = evaluate(config, eval_dataset, model, tokenizer, experiment, global_step)
-                    if hyper_params_tuning:
-                        tune.report(validation_loss=results['validation_loss'],
-                                    perplexity=results['perplexity'])
+            if VALIDATION_LOGGING_STEPS > 0 and global_step % VALIDATION_LOGGING_STEPS == 0:
+                results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+                if hyper_params_tuning:
+                    tune.report(validation_loss=results['validation_loss'], perplexity=results['perplexity'])
 
-                if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0 and not hyper_params_tuning:
-                    checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
-                    os.makedirs(checkpoint_output_dir, exist_ok=True)
-                    logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
-                    model.save_pretrained(checkpoint_output_dir)
-                    logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
-                    torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
-                    torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
-                    rotate_checkpoints()
+            if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0 and not hyper_params_tuning:
+                checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
+                os.makedirs(checkpoint_output_dir, exist_ok=True)
+                logger.info("Saving model checkpoint to %s", checkpoint_output_dir)
+                model.save_pretrained(checkpoint_output_dir)
+                logger.info("Saving optimizer and scheduler states to %s", checkpoint_output_dir)
+                torch.save(optimizer.state_dict(), os.path.join(checkpoint_output_dir, "optimizer.pt"))
+                torch.save(scheduler.state_dict(), os.path.join(checkpoint_output_dir, "scheduler.pt"))
+                rotate_checkpoints()
 
-                if 0 < MAX_STEPS < global_step:
-                    data_iterator.close()
-                    break
+            if 0 < MAX_STEPS < global_step:
+                data_iterator.close()
+                break
 
     experiment.end()
 
-    return global_step, (training_loss / global_step), model
+    if hyper_params_tuning:
+        results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+        return {
+            'validation_loss': results['validation_loss'],
+            'perplexity': results['perplexity']
+        }
+    else:
+        validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+        return global_step, (training_loss / global_step), model
