@@ -21,13 +21,12 @@ class LanguageModel(object):
         self._word_frequency = word_frequency.WordFrequency()
 
         if local_dictionary:
-            self._word_frequency.load_dictionary(os.path.join(OUTPUT_DIR, "dictionary"))
-            self._word_frequency.remove_by_threshold(100)
-            self._uni_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "unigrams_tuples"), 'rb'))
+            self._word_frequency.load_dictionary(os.path.join(OUTPUT_DIR, "unigrams_tuples"))
+            #self._word_frequency.remove_by_threshold(5)
             self._bi_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "bigrams_tuples"), 'rb'))
             self._tri_grams = pickle.load(open(os.path.join(OUTPUT_DIR, "trigrams_tuples"), 'rb'))
             self._names = pickle.load(open(os.path.join(OUTPUT_DIR, "names"), 'rb'))
-            self._uni_grams_size = len(self._uni_grams)
+            self._uni_grams_size = self._word_frequency.unique_words
         else:
             raise Exception("Sorry, There is no Dictionary to load Please enter the path of the dictionary")
 
@@ -137,7 +136,7 @@ class LanguageModel(object):
         return set(
             w
             for w in tmp
-            if w in self._word_frequency.dictionary
+            if (w,) in self._word_frequency.dictionary
         )
 
     def edit_one_letter(self, word):
@@ -243,7 +242,7 @@ class LanguageModel(object):
         # Get its count.  Otherwise set the count to zero
         # Use the dictionary that has counts for n-grams
         if not tri:
-            previous_n_gram_count = self._uni_grams.get(previous_n_gram, 0)
+            previous_n_gram_count = self._word_frequency.dictionary.get(previous_n_gram, 0)
         else:
             previous_n_gram_count = self._bi_grams.get(previous_n_gram, 0)
 
@@ -274,7 +273,8 @@ class LanguageModel(object):
     def estimate_sentence_probability(self, sentence, tri=True,k=1.0):
         sentence_to_check = np.copy(sentence)
         sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
-        sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
+        if tri:
+            sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
         sentence_to_check = np.insert(sentence_to_check, len(sentence_to_check), "<e>", axis=0)
         prob = 0.0
         for i, word in enumerate(sentence_to_check):
