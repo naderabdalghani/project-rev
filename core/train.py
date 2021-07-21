@@ -258,5 +258,5 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
             'perplexity': results['perplexity']
         }
     else:
-        validate(config, valid_dataset, model, tokenizer, experiment, global_step)
-        return global_step, (training_loss / global_step), model
+        valid_results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+        return global_step, (training_loss / global_step), model, valid_results

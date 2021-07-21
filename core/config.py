@@ -40,16 +40,17 @@ DEFAULT_HYPER_PARAMS = {
     "BATCH_SIZE": 4
 }
 MAX_GRAD_NORM = 1.0
+NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
 BOT_TOKEN = '<bot>'
 USER_TOKEN = '<s>'
-AVOID_BAD_WORDS = False
-with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
-    BAD_WORDS = f.read().splitlines()
 DATASET_FILENAME = 'HIMYM_DATASET.txt'
-NO_DECAY_PARAMS_NAMES = ["bias", "ln"]
 CHECKPOINT_PREFIX = "core-checkpoint"
 SAVED_INSTANCE_PREFIX = "core-model"
 LOSS_FN_IGNORE_INDEX = -100
+AVOID_BAD_WORDS = False
+
+with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
+    BAD_WORDS = f.read().splitlines()
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
