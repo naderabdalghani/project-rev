@@ -15,7 +15,7 @@ from ray.tune.suggest import BasicVariantGenerator
 
 from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, \
     SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, CUDA, DEFAULT_HYPER_PARAMS, \
-    AVOID_BAD_WORDS, HYPER_PARAMS_TUNING
+    AVOID_BAD_WORDS, HYPER_PARAMS_TUNING, VALIDATE_WHILE_TRAINING
 from exceptions import CoreModelNotTrained
 from preprocessing import ConversationDataset
 from train import train, validate
@@ -92,18 +92,21 @@ def get_saved_instance_path(use_mtime=False):
     return sorted(saved_instances)[0][1]
 
 
-def load_datasets(tokenizer):
+def load_datasets(tokenizer, force_load_valid=False):
     dataset = ConversationDataset(tokenizer)
-    dataset_len = len(dataset)
-    datasets_lengths = [dataset_len - int(dataset_len * VALID_DATA_SPLIT_RATIO),
-                        int(dataset_len * VALID_DATA_SPLIT_RATIO)]
-    return random_split(dataset, datasets_lengths)
+    if VALIDATE_WHILE_TRAINING or force_load_valid:
+        dataset_len = len(dataset)
+        datasets_lengths = [dataset_len - int(dataset_len * VALID_DATA_SPLIT_RATIO),
+                            int(dataset_len * VALID_DATA_SPLIT_RATIO)]
+        return random_split(dataset, datasets_lengths)
+    return dataset, None
 
 
 def main():
     logger.info("Running on GPU" if CUDA else "Running on CPU")
 
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
+
     train_dataset, valid_dataset = load_datasets(tokenizer)
 
     hyper_params = DEFAULT_HYPER_PARAMS
@@ -111,8 +114,9 @@ def main():
     if DO_TRAIN:
         if HYPER_PARAMS_TUNING:
             ray.init(include_dashboard=False)
+            metric = "perplexity" if VALIDATE_WHILE_TRAINING else "training_loss"
             scheduler = ASHAScheduler(
-                metric="perplexity",
+                metric=metric,
                 mode="min",
                 max_t=MAX_NUM_STEPS,
                 grace_period=MIN_NUM_STEPS
@@ -126,29 +130,28 @@ def main():
                 search_alg=BasicVariantGenerator(max_concurrent=1),
                 verbose=0
             )
-            best_trial = result.get_best_trial("perplexity", "min", "last")
+            best_trial = result.get_best_trial(metric, "min", "last")
             logger.info("Best trial config: {}".format(best_trial.config))
-            logger.info("Best trial final validation loss: {}".format(best_trial.last_result["validation_loss"]))
-            logger.info("Best trial final perplexity: {}".format(best_trial.last_result["perplexity"]))
+            logger.info("Best trial final result: {}".format(best_trial.last_result))
 
             hyper_params = best_trial.config
 
-        total_number_of_steps, training_loss, model, valid_results = train(hyper_params, train_dataset, valid_dataset,
-                                                                           tokenizer, hyper_params_tuning=False)
+        total_number_of_steps, model, results = train(hyper_params, train_dataset, valid_dataset, tokenizer,
+                                                      hyper_params_tuning=False)
 
         saved_instance_output_dir = os.path.join(MODELS_DIR, "{}-{}-{}".format(SAVED_INSTANCE_PREFIX,
                                                                                total_number_of_steps,
-                                                                               training_loss
+                                                                               results['average_training_loss']
                                                                                ))
         os.makedirs(saved_instance_output_dir, exist_ok=True)
         logger.info("Saving trained model instance to %s", saved_instance_output_dir)
         model.save_pretrained(saved_instance_output_dir)
 
-        logger.info("***** Validation Result *****")
-        for key in valid_results.keys():
-            logger.info("%s = %s", key, str(valid_results[key]))
+        logger.info("***** Training Result *****")
+        for key in results.keys():
+            logger.info("%s = %s", key, str(results[key]))
 
-    elif DO_VALID:
+    if DO_VALID:
         global saved_instance_path
         saved_instance_path = get_saved_instance_path()
         if saved_instance_path is None:
@@ -156,6 +159,8 @@ def main():
                 .to(DEVICE)
         else:
             model, tokenizer = load_saved_instance(saved_instance_path)
+        if valid_dataset is None:
+            train_dataset, valid_dataset = load_datasets(tokenizer, force_load_valid=True)
         result = validate(hyper_params, valid_dataset, model, tokenizer, silent=False)
         logger.info("***** Validation Result *****")
         for key in result.keys():

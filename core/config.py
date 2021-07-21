@@ -9,6 +9,8 @@ MODELS_DIR = '..\models'
 CACHE_DIR = '..\cache'
 DATA_DIR = '..\data'
 HYPER_PARAMS_TUNING = True
+TRIAL_NAME = ""
+VALIDATE_WHILE_TRAINING = False
 DO_TRAIN = True
 DO_VALID = False
 NUM_SAMPLES = 20
@@ -16,7 +18,7 @@ MAX_NUM_STEPS = 10000
 MIN_NUM_STEPS = 1000
 VALID_DATA_SPLIT_RATIO = 0.15
 MAX_STEPS = -1  # If > 0, sets total number of training steps to perform. Overrides NUM_TRAIN_EPOCHS
-VALIDATION_LOGGING_STEPS = 50
+LOGGING_STEPS = 50
 SAVE_STEPS = 0
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
 OVERWRITE_CACHE = False
@@ -24,12 +26,12 @@ RESUME_TRAINING = False
 CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if CUDA else "cpu")
 HYPER_PARAMS = {
-    "LEARNING_RATE": tune.qloguniform(1e-5, 1e-4, 1e-5),
-    "WEIGHT_DECAY": tune.quniform(0, 0.2, 0.01),
-    "ADAM_EPSILON": tune.qloguniform(5e-9, 5e-8, 1e-9),
+    "LEARNING_RATE": tune.qloguniform(1e-4, 1e-3, 1e-4),
+    "WEIGHT_DECAY": tune.quniform(0, 0.25, 0.01),
+    "ADAM_EPSILON": tune.qloguniform(1e-9, 1e-8, 1e-9),
     "NUM_TRAIN_EPOCHS": 5,
-    "WARMUP_STEPS": tune.qrandint(0, 1000, 200),
-    "BATCH_SIZE": tune.choice([2, 4, 8])
+    "WARMUP_STEPS": tune.qrandint(0, 6000, 1000),
+    "BATCH_SIZE": 2
 }
 DEFAULT_HYPER_PARAMS = {
     "LEARNING_RATE": 1e-5,

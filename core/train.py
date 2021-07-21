@@ -13,8 +13,9 @@ from torch.utils.data import RandomSampler, DataLoader, SequentialSampler
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
-from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, VALIDATION_LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, \
-    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM, MODEL_NAME, CACHE_DIR
+from config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, \
+    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM, MODEL_NAME, CACHE_DIR, \
+    TRIAL_NAME, VALIDATE_WHILE_TRAINING
 from keys import COMET_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,8 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
         tune.utils.wait_for_gpu()
     if COMET_API_KEY:
         experiment = Experiment(api_key=COMET_API_KEY, project_name="Core Module", parse_args=False)
+        if hyper_params_tuning and TRIAL_NAME:
+            experiment.add_tag(TRIAL_NAME)
     else:
         experiment = Experiment(api_key='dummy_key', disabled=True)
 
@@ -194,6 +197,7 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
     logger.info("Total optimization steps = {}".format(total_optimization_steps))
 
     training_loss = 0.0
+    last_recorded_loss = 0.0
     model.zero_grad()
     epochs = trange(epochs_trained, int(num_of_epochs), desc="Epochs", unit="epoch", leave=True, position=0,
                     disable=hyper_params_tuning)
@@ -219,7 +223,8 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
             loss = outputs[0]
             loss.backward()
 
-            training_loss += loss.item()
+            last_recorded_loss = loss.item()
+            training_loss += last_recorded_loss
             clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
 
             optimizer.step()
@@ -228,12 +233,16 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
             global_step += 1
 
             experiment.log_metric("learning_rate", scheduler.get_last_lr()[0], global_step)
-            experiment.log_metric("training_loss", loss.item(), global_step)
+            experiment.log_metric("training_loss", last_recorded_loss, global_step)
 
-            if VALIDATION_LOGGING_STEPS > 0 and global_step % VALIDATION_LOGGING_STEPS == 0:
-                results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
-                if hyper_params_tuning:
-                    tune.report(validation_loss=results['validation_loss'], perplexity=results['perplexity'])
+            if LOGGING_STEPS > 0 and global_step % LOGGING_STEPS == 0:
+                if VALIDATE_WHILE_TRAINING:
+                    results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+                    if hyper_params_tuning:
+                        tune.report(validation_loss=results['validation_loss'], perplexity=results['perplexity'])
+                else:
+                    if hyper_params_tuning:
+                        tune.report(training_loss=last_recorded_loss)
 
             if SAVE_STEPS > 0 and global_step % SAVE_STEPS == 0 and not hyper_params_tuning:
                 checkpoint_output_dir = os.path.join(MODELS_DIR, "{}-{}".format(CHECKPOINT_PREFIX, global_step))
@@ -252,11 +261,12 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
     experiment.end()
 
     if hyper_params_tuning:
-        results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
-        return {
-            'validation_loss': results['validation_loss'],
-            'perplexity': results['perplexity']
-        }
+        if VALIDATE_WHILE_TRAINING:
+            return validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+        return {'training_loss': last_recorded_loss}
     else:
-        valid_results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
-        return global_step, (training_loss / global_step), model, valid_results
+        if VALIDATE_WHILE_TRAINING:
+            valid_results = validate(config, valid_dataset, model, tokenizer, experiment, global_step)
+            valid_results["average_training_loss"] = (training_loss / global_step)
+            return global_step, model, valid_results
+        return global_step, model, {'average_training_loss': (training_loss / global_step)}
