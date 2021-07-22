@@ -48,3 +48,23 @@ def wav_to_text():
     decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
     print(decoded_predictions)
 
+
+def load_data():
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    train_dataset = torchaudio.datasets.LIBRISPEECH(DATA_DIR, url=TRAIN_DATASET_URL, download=True)
+    valid_dataset = torchaudio.datasets.LIBRISPEECH(DATA_DIR, url=VALID_DATASET_URL, download=True)
+
+    kwargs = {'num_workers': NUM_WORKERS, 'pin_memory': True} if CUDA else {}
+    train_loader = data.DataLoader(dataset=train_dataset,
+                                   batch_size=HYPER_PARAMS['batch_size'],
+                                   shuffle=True,
+                                   collate_fn=lambda x: preprocess(x, 'train'),
+                                   **kwargs)
+    valid_loader = data.DataLoader(dataset=valid_dataset,
+                                   batch_size=HYPER_PARAMS['batch_size'],
+                                   shuffle=False,
+                                   collate_fn=lambda x: preprocess(x, 'valid'),
+                                   **kwargs)
+    return train_loader, valid_loader
+
