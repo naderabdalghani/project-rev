@@ -4,11 +4,21 @@ import torch
 from config import TEXT_TRANSFORMER
 
 
+def average_word_error_rate(word_error_rate_scores, combined_ref_len):
+    """
+    This function calculates average word error rate of the whole sentence.
+    :param word_error_rate_scores: (float) Word error rate of each word.
+    :param combined_ref_len: (int) Length of the reference sentence.
+    :return: (float) Average word error rate.
+    """
+    return float(sum(word_error_rate_scores)) / float(combined_ref_len)
+
+
 def get_levenshtein_distance(reference, hypothesis):
     """
     Levenshtein distance or edit distance is a metric for measuring the difference
     between two sequences. Levenshtein distance can be measured as the minimum number
-    of single-character edits (insertions, deletions, or substitution)
+    of single-character edits (insertions, deletions, or substitution).
     :param reference: (string) The reference sentence.
     :param hypothesis: (string) The hypothesis sentence.
     :return: (int) Levenshtein distance
