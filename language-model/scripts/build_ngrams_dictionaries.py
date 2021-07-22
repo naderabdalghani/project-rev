@@ -253,22 +253,26 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
     return n_grams
 
 
-def main():
-    with open(os.path.join(MODELS_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
-        data = f.read()
-    print("Data type:", type(data))
-    print("Number of letters:", len(data))
-    train_data = get_tokenized_data(data)
-    minimum_freq = 2
-    train_data_processed, vocabulary = preprocess_data(train_data, minimum_freq)
-    unigrams = count_n_grams(train_data_processed, 1)
-    bigrams = count_n_grams(train_data_processed, 2)
-    trigrams = count_n_grams(train_data_processed, 3)
-    pickle.dump(unigrams, open(os.path.join(MODELS_DIR, "unigrams_tuples"), 'wb'))
-    pickle.dump(bigrams, open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'wb'))
-    pickle.dump(trigrams, open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'wb'))
-    print("Dictionaries Built Successfully")
+def build_dictionary():
+    dataset_path = os.path.join(MODELS_DIR, "en_US.twitter.txt")
+    if os.path.isfile(dataset_path):
+        with open(os.path.join(MODELS_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
+            data = f.read()
+        print("Data type:", type(data))
+        print("Number of letters:", len(data))
+        train_data = get_tokenized_data(data)
+        minimum_freq = 2
+        train_data_processed, vocabulary = preprocess_data(train_data, minimum_freq)
+        unigrams = count_n_grams(train_data_processed, 1)
+        bigrams = count_n_grams(train_data_processed, 2)
+        trigrams = count_n_grams(train_data_processed, 3)
+        pickle.dump(unigrams, open(os.path.join(MODELS_DIR, "unigrams_tuples"), 'wb'))
+        pickle.dump(bigrams, open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'wb'))
+        pickle.dump(trigrams, open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'wb'))
+        print("Dictionaries Built Successfully")
+    else:
+        raise Exception("Dataset was not found please make sure that dataset is downloaded")
 
 
 if __name__ == '__main__':
-    main()
+    build_dictionary()
