@@ -23,27 +23,31 @@ from .train import train, validate
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
-loaded_model = None
+loaded_core_model = None
 loaded_tokenizer = None
 chat_history = []
 bad_words_ids = []
 
 
+def load_core_model():
+    global saved_instance_path, loaded_core_model, loaded_tokenizer
+    if loaded_core_model is None or loaded_tokenizer is None:
+        if saved_instance_path is None:
+            saved_instance_path = get_saved_instance_path()
+            if saved_instance_path is None:
+                raise CoreModelNotTrained()
+        loaded_core_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
+        loaded_core_model.eval()
+
+
 @torch.no_grad()
 def get_bot_response_as_text(user_utterance):
-    global saved_instance_path, loaded_model, loaded_tokenizer, chat_history
-    if saved_instance_path is None:
-        saved_instance_path = get_saved_instance_path()
-        if saved_instance_path is None:
-            raise CoreModelNotTrained()
-    if loaded_model is None or loaded_tokenizer is None:
-        loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
-        loaded_model.eval()
-
+    load_core_model()
+    global loaded_core_model, loaded_tokenizer
     new_user_input_ids = loaded_tokenizer.encode(user_utterance, truncation=True, return_tensors='pt').to(DEVICE)
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
-    bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
-        if AVOID_BAD_WORDS else loaded_model.generate(flattened_chat_history).to(DEVICE)
+    bot_response_ids = loaded_core_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
+        if AVOID_BAD_WORDS else loaded_core_model.generate(flattened_chat_history).to(DEVICE)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
