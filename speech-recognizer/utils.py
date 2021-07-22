@@ -98,3 +98,35 @@ def calculate_character_errors(reference, hypothesis, ignore_case=False, remove_
     edit_distance = get_levenshtein_distance(reference, hypothesis)
     return float(edit_distance), len(reference)
 
+
+def calculate_word_error_rate(reference, hypothesis, ignore_case=False, delimiter=' '):
+    """
+    Calculate word error rate (WER). WER compares reference text and
+    hypothesis text in word-level. WER is defined as:
+        WER = (Sw + Dw + Iw) / Nw
+    where
+        Sw is the number of words substituted,
+        Dw is the number of words deleted,
+        Iw is the number of words inserted,
+        Nw is the number of words in the reference
+    as
+        Sw + Dw + Iw = Edit distance
+    then
+        WER = (levenshtein distance) / Nw
+    We can use levenshtein distance to calculate WER.
+    :param reference: (string) The reference sentence.
+    :param hypothesis: (string) The hypothesis sentence.
+    :param ignore_case: (bool) Whether case-sensitive or not.
+    :param delimiter: (char) Delimiter of input sentences.
+    :return: (float) Word error rate.
+    :raises ValueError: If word number of reference is zero.
+    :return: (float) Word error rate
+    """
+    edit_distance, ref_len = calculate_word_errors(reference, hypothesis, ignore_case,
+                                                   delimiter)
+
+    if ref_len == 0:
+        raise ValueError("Reference's word number should be greater than 0.")
+
+    wer = float(edit_distance) / ref_len
+    return wer
