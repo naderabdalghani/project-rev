@@ -5,7 +5,7 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 
-from config import CACHE_DIR, OVERWRITE_CACHE, DATASET_FILENAME, DATA_DIR, BOT_TOKEN
+from .config import CACHE_DIR, OVERWRITE_CACHE, DATASET_FILENAME, DATA_DIR, BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 

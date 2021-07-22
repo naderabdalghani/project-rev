@@ -5,9 +5,9 @@ import torch
 from ray import tune
 
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
-MODELS_DIR = '..\models'
-CACHE_DIR = '..\cache'
-DATA_DIR = '..\data'
+MODELS_DIR = '.\models'
+CACHE_DIR = '.\cache'
+DATA_DIR = '.\data'
 HYPER_PARAMS_TUNING = True
 TRIAL_NAME = ""
 VALIDATE_WHILE_TRAINING = False
