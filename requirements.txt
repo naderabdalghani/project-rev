@@ -6,3 +6,9 @@ transformers>=4.8.2
 tqdm>=4.61.2
 ray>=1.4.1
 comet_ml>=3.13.1
+
+librosa~=0.8.1
+mutagen~=1.45.1
+pydub~=0.25.1
+torchaudio~=0.8.1
+SoundFile~=0.10.3.post1
