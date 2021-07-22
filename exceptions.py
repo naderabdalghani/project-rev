@@ -8,3 +8,9 @@ class SpeechRecognizerNotTrained(Exception):
     def __init__(self, message="No saved instance of the speech recognizer model was found. "
                                "Please make sure the model is trained and saved."):
         super().__init__(message)
+
+
+class LanguageModelNotTrained(Exception):
+    def __init__(self, message="No saved instance of the language model was found. "
+                               "Please make sure the model is trained and saved."):
+        super().__init__(message)
