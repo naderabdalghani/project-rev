@@ -68,3 +68,50 @@ def load_data():
                                    **kwargs)
     return train_loader, valid_loader
 
+
+def main():
+    if COMET_API_KEY:
+        experiment = Experiment(api_key=COMET_API_KEY, project_name="Speech Recognizer", parse_args=False)
+    else:
+        experiment = Experiment(api_key='dummy_key', disabled=True)
+
+    experiment.log_parameters(HYPER_PARAMS)
+
+    train_loader, valid_loader = load_data()
+
+    model = SpeechRecognitionModel(
+        HYPER_PARAMS['n_cnn_layers'], HYPER_PARAMS['n_rnn_layers'], HYPER_PARAMS['rnn_dim'],
+        HYPER_PARAMS['n_class'], HYPER_PARAMS['n_feats'], HYPER_PARAMS['stride'], HYPER_PARAMS['dropout']
+    ).to(DEVICE)
+
+    print(model)
+    print('Number of model parameters', sum([param.nelement() for param in model.parameters()]))
+
+    optimizer = optim.AdamW(model.parameters(), HYPER_PARAMS['learning_rate'])
+    criterion = nn.CTCLoss(blank=TextTransformer.BLANK_LABEL).to(DEVICE)
+    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=HYPER_PARAMS['learning_rate'],
+                                              steps_per_epoch=int(len(train_loader)),
+                                              epochs=HYPER_PARAMS['epochs'],
+                                              anneal_strategy='linear')
+
+    step = 0
+    previous_test_loss = float('inf')
+    for epoch in trange(1, HYPER_PARAMS['EPOCHS'] + 1, leave=True, position=0):
+        train(model, train_loader, criterion, optimizer, scheduler, epoch, step, experiment)
+        current_test_loss = validate(model, valid_loader, criterion, step, experiment)
+        print("Previous loss = {}\tCurrent loss = {}".format(previous_test_loss, current_test_loss))
+        if current_test_loss < previous_test_loss:
+            print("Saving model checkpoint...")
+            torch.save({
+                'epoch': epoch,
+                'hparams': HYPER_PARAMS,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'loss': current_test_loss
+            }, os.path.join(MODELS_DIR, SAVED_INSTANCE_NAME))
+            previous_test_loss = current_test_loss
+
+
+if __name__ == '__main__':
+    wav_to_text()
