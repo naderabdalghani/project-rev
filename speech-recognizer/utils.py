@@ -1,26 +1,29 @@
-def get_levenshtein_distance(ref, hyp):
+import numpy as np
+
+
+def get_levenshtein_distance(reference, hypothesis):
     """
     Levenshtein distance or edit distance is a metric for measuring the difference
     between two sequences. Levenshtein distance can be measured as the minimum number
     of single-character edits (insertions, deletions, or substitution)
-    :param ref: (String) The first string to be compared with.
-    :param hyp: (String) The second string to be compared with.
-    :return: Levenshtein distance
+    :param reference: (string) The reference sentence.
+    :param hypothesis: (string) The hypothesis sentence.
+    :return: (int) Levenshtein distance
     """
-    len_max_string = len(ref)
-    len_min_string = len(hyp)
+    len_max_string = len(reference)
+    len_min_string = len(hypothesis)
 
     # Special cases
-    if ref == hyp:
+    if reference == hypothesis:
         return 0
     if len_max_string == 0:
         return len_min_string
     if len_min_string == 0:
         return len_max_string
 
-    # Store the longest string to ref and the other one to hyp
+    # Store the longest string to reference and the other one to hypothesis
     if len_max_string < len_min_string:
-        ref, hyp = hyp, ref
+        reference, hypothesis = hypothesis, reference
         len_max_string, len_min_string = len_min_string, len_max_string
 
     # Create matrix of zeros with dimensions = 2 * len_min_string
@@ -36,7 +39,7 @@ def get_levenshtein_distance(ref, hyp):
         cur_row_idx = i % 2
         distance[cur_row_idx][0] = i
         for j in range(1, len_min_string + 1):
-            if ref[i - 1] == hyp[j - 1]:
+            if reference[i - 1] == hypothesis[j - 1]:
                 distance[cur_row_idx][j] = distance[prev_row_idx][j - 1]
             else:
                 s_num = distance[prev_row_idx][j - 1] + 1  # Substitute
@@ -45,3 +48,27 @@ def get_levenshtein_distance(ref, hyp):
                 distance[cur_row_idx][j] = min(s_num, i_num, d_num)
 
     return distance[len_max_string % 2][len_min_string]
+
+
+def calculate_word_errors(reference, hypothesis, ignore_case=False, delimiter=' '):
+    """
+    Compute the levenshtein distance between reference sequence and
+    hypothesis sequence in word-level.
+    :param reference: (string) The reference sentence.
+    :param hypothesis: (string) The hypothesis sentence.
+    :param ignore_case: (bool) Whether case-sensitive or not.
+    :param delimiter: (char) Delimiter of input sentences.
+    :return: (list (float, int)) Levenshtein distance and word number of reference sentence.
+    """
+    # Change reference and hypothesis to lower case in case of ignore_case
+    if ignore_case:
+        reference = reference.lower()
+        hypothesis = hypothesis.lower()
+
+    # Split on delimiter
+    ref_words = reference.split(delimiter)
+    hyp_words = hypothesis.split(delimiter)
+
+    edit_distance = get_levenshtein_distance(ref_words, hyp_words)
+    return float(edit_distance), len(ref_words)
+
