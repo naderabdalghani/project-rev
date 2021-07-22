@@ -1,11 +1,11 @@
-from text_transformer import TextTransformer
+from .text_transformer import TextTransformer
 import torch
 import os
 
 
-MODELS_DIR = '..\models'
-DATA_DIR = '..\data'
-CACHE_DIR = '..\cache'
+MODELS_DIR = '.\models'
+DATA_DIR = '.\data'
+CACHE_DIR = '.\cache'
 FEATURE_USED = {'name': 'mel-spectrogram', 'n_features': 128}
 SAMPLING_RATE = 16000
 TEXT_TRANSFORMER = TextTransformer()

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from config import TEXT_TRANSFORMER
+from .config import TEXT_TRANSFORMER
 
 
 def average_word_error_rate(word_error_rate_scores, combined_ref_len):
