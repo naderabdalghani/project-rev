@@ -2,10 +2,11 @@ import pickle
 import nltk
 import os
 from app_config import DATA_DIR, MODELS_DIR
-from ..config import DATASET_FILENAME, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME
+from config import DATASET_FILENAME, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def split_to_sentences(data):
     """
