@@ -1,3 +1,4 @@
+import logging
 import os
 
 from comet_ml import Experiment
@@ -6,23 +7,25 @@ import torch
 import torch.nn as nn
 import torch.utils.data as data
 import torch.optim as optim
+import torch.nn.functional as F
 from tqdm import trange
 
 from exceptions import SpeechRecognizerNotTrained
 from keys import COMET_API_KEY
-from config import HYPER_PARAMS, DATA_DIR, CUDA, NUM_WORKERS, TRAIN_DATASET_URL, VALID_DATASET_URL, DEVICE, MODELS_DIR, \
+from .config import HYPER_PARAMS, DATA_DIR, CUDA, NUM_WORKERS, TRAIN_DATASET_URL, VALID_DATASET_URL, DEVICE, \
     SAVED_INSTANCE_NAME
-from preprocessing import preprocess, valid_audio_transforms
-from model import SpeechRecognitionModel
-from text_transformer import TextTransformer
-from train import train, validate
-from utils import greedy_decode
-import torch.nn.functional as F
+from .preprocessing import preprocess, valid_audio_transforms
+from .model import SpeechRecognitionModel
+from .text_transformer import TextTransformer
+from .train import train, validate
+from .utils import greedy_decode
+from app_config import MODELS_DIR
 
+logger = logging.getLogger(__name__)
 loaded_model = None
 
 
-def load_saved_instance():
+def load_speech_recognizer():
     global loaded_model
     saved_instance_path = os.path.join(MODELS_DIR, SAVED_INSTANCE_NAME)
     if os.path.isfile(saved_instance_path):
@@ -34,6 +37,7 @@ def load_saved_instance():
         ).to(DEVICE)
         loaded_model.load_state_dict(checkpoint['model_state_dict'])
         loaded_model.eval()
+        logger.info("Speech recognizer model instance loaded successfully")
     else:
         raise SpeechRecognizerNotTrained()
 
@@ -42,11 +46,11 @@ def load_saved_instance():
 def wav_to_text():
     global loaded_model
     if loaded_model is None:
-        load_saved_instance()
+        load_speech_recognizer()
     waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
     spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
     decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
-    print(decoded_predictions)
+    logger.info(decoded_predictions)
 
 
 def load_data():
@@ -70,6 +74,12 @@ def load_data():
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO
+    )
+
     if COMET_API_KEY:
         experiment = Experiment(api_key=COMET_API_KEY, project_name="Speech Recognizer", parse_args=False)
     else:
@@ -84,8 +94,8 @@ def main():
         HYPER_PARAMS['n_class'], HYPER_PARAMS['n_feats'], HYPER_PARAMS['stride'], HYPER_PARAMS['dropout']
     ).to(DEVICE)
 
-    print(model)
-    print('Number of model parameters', sum([param.nelement() for param in model.parameters()]))
+    logger.info(model)
+    logger.info('Number of model parameters', sum([param.nelement() for param in model.parameters()]))
 
     optimizer = optim.AdamW(model.parameters(), HYPER_PARAMS['learning_rate'])
     criterion = nn.CTCLoss(blank=TextTransformer.BLANK_LABEL).to(DEVICE)
@@ -99,9 +109,9 @@ def main():
     for epoch in trange(1, HYPER_PARAMS['EPOCHS'] + 1, leave=True, position=0):
         train(model, train_loader, criterion, optimizer, scheduler, epoch, step, experiment)
         current_test_loss = validate(model, valid_loader, criterion, step, experiment)
-        print("Previous loss = {}\tCurrent loss = {}".format(previous_test_loss, current_test_loss))
+        logger.info("Previous loss = {}\tCurrent loss = {}".format(previous_test_loss, current_test_loss))
         if current_test_loss < previous_test_loss:
-            print("Saving model checkpoint...")
+            logger.info("Saving model checkpoint...")
             torch.save({
                 'epoch': epoch,
                 'hparams': HYPER_PARAMS,

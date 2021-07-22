@@ -1,13 +1,11 @@
-import logging
 import os.path
 
 import torch
 from ray import tune
 
+from app_config import DATA_DIR
+
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
-MODELS_DIR = '..\models'
-CACHE_DIR = '..\cache'
-DATA_DIR = '..\data'
 HYPER_PARAMS_TUNING = True
 TRIAL_NAME = ""
 VALIDATE_WHILE_TRAINING = False
@@ -53,9 +51,3 @@ AVOID_BAD_WORDS = False
 
 with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
     BAD_WORDS = f.read().splitlines()
-
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
-    level=logging.INFO
-)

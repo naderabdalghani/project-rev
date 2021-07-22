@@ -13,12 +13,13 @@ from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest import BasicVariantGenerator
 
-from config import MODEL_NAME, CACHE_DIR, MODELS_DIR, DEVICE, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, \
-    SAVED_INSTANCE_PREFIX, HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, CUDA, DEFAULT_HYPER_PARAMS, \
-    AVOID_BAD_WORDS, HYPER_PARAMS_TUNING, VALIDATE_WHILE_TRAINING
+from .config import MODEL_NAME, DEVICE, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, SAVED_INSTANCE_PREFIX, \
+    HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, CUDA, DEFAULT_HYPER_PARAMS, HYPER_PARAMS_TUNING, \
+    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING
 from exceptions import CoreModelNotTrained
-from preprocessing import ConversationDataset
-from train import train, validate
+from app_config import MODELS_DIR, CACHE_DIR
+from .preprocessing import ConversationDataset
+from .train import train, validate
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
@@ -103,6 +104,12 @@ def load_datasets(tokenizer, force_load_valid=False):
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO
+    )
+
     logger.info("Running on GPU" if CUDA else "Running on CPU")
 
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
