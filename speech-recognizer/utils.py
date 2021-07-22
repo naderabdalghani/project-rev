@@ -103,23 +103,21 @@ def calculate_word_error_rate(reference, hypothesis, ignore_case=False, delimite
     """
     Calculate word error rate (WER). WER compares reference text and
     hypothesis text in word-level. WER is defined as:
-        WER = (Sw + Dw + Iw) / Nw
+    Equation:
+        WER = (Sw + Dw + Iw) / Nw  =  levenshtein_distance / Nw
     where
         Sw is the number of words substituted,
         Dw is the number of words deleted,
         Iw is the number of words inserted,
         Nw is the number of words in the reference
-    as
-        Sw + Dw + Iw = Edit distance
-    then
-        WER = (levenshtein distance) / Nw
+        Levenshtein distance = Sw + Dw + Iw
     We can use levenshtein distance to calculate WER.
     :param reference: (string) The reference sentence.
     :param hypothesis: (string) The hypothesis sentence.
     :param ignore_case: (bool) Whether case-sensitive or not.
     :param delimiter: (char) Delimiter of input sentences.
     :return: (float) Word error rate.
-    :raises ValueError: If word number of reference is zero.
+    :raises ValueError: If word reference length is zero.
     :return: (float) Word error rate
     """
     edit_distance, ref_len = calculate_word_errors(reference, hypothesis, ignore_case,
@@ -130,3 +128,35 @@ def calculate_word_error_rate(reference, hypothesis, ignore_case=False, delimite
 
     wer = float(edit_distance) / ref_len
     return wer
+
+
+def calculate_character_error_rate(reference, hypothesis, ignore_case=False, remove_space=False):
+    """Calculate character error rate (CER). CER compares reference text and
+    hypothesis text in char-level. CER is defined as:
+    Equation:
+        CER = (Sc + Dc + Ic) / Nc  =  levenshtein_distance / Nw
+    where
+        Sc is the number of characters substituted,
+        Dc is the number of characters deleted,
+        Ic is the number of characters inserted
+        Nc is the number of characters in the reference
+        Levenshtein distance = Sc + Dc + Ic
+    We can use levenshtein distance to calculate CER. Noting that spaces at the beginning
+    and at the end of the sentences will be truncated, also many consecutive spaces will be
+    replaced with only one space .
+    :param reference: (String) The reference sentence.
+    :param hypothesis: (String) The hypothesis sentence.
+    :param ignore_case: (bool) Whether case-sensitive or not.
+    :param remove_space: (bool) Whether remove internal space characters
+    :raises ValueError: If the reference length is zero.
+    :return: (float) Character error rate.
+    """
+    edit_distance, ref_len = calculate_character_errors(reference, hypothesis, ignore_case,
+                                                        remove_space)
+
+    if ref_len == 0:
+        raise ValueError("Length of reference should be greater than 0.")
+
+    cer = float(edit_distance) / ref_len
+    return cer
+
