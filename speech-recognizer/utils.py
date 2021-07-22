@@ -1,4 +1,7 @@
 import numpy as np
+import torch
+
+from config import TEXT_TRANSFORMER
 
 
 def get_levenshtein_distance(reference, hypothesis):
@@ -160,3 +163,30 @@ def calculate_character_error_rate(reference, hypothesis, ignore_case=False, rem
     cer = float(edit_distance) / ref_len
     return cer
 
+
+def greedy_decode(output, labels=None, label_lengths=None, blank_label=TEXT_TRANSFORMER.BLANK_LABEL,
+                  collapse_repeated=True):
+    """
+    This function returns the char sequence using greedy approach given the output of the model
+    :param output: (n * number_of_labels matrix) The output of the model (probability matrix)
+    :param labels: (number_of_labels * m matrix) Labels, in our case m = 1
+    :param label_lengths: (list) Length of each label
+    :param blank_label: (int) The corresponding value of the blank label
+    :param collapse_repeated: (bool) Ignore adding label if it was found at the index before thee current index
+    :return: (list (list, list)) decoded values and target values
+    """
+    # Get the max probabilities
+    arg_maxes = torch.argmax(output, dim=2)
+    decodes = []
+    targets = []
+    for i, args in enumerate(arg_maxes):
+        decode = []
+        if labels is not None:
+            targets.append(TEXT_TRANSFORMER.int_to_text(labels[i][:label_lengths[i]].tolist()))
+        for j, index in enumerate(args):
+            if index != blank_label:
+                if collapse_repeated and j != 0 and index == args[j - 1]:
+                    continue
+                decode.append(index.item())
+        decodes.append(TEXT_TRANSFORMER.int_to_text(decode))
+    return decodes, targets
