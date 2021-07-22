@@ -1,13 +1,10 @@
-
-
 import pickle
 from collections import Counter
 import string
-from utils import _parse_into_words, load_file
+from utils import parse_into_words
 
 
-class WordFrequency(object):
-
+class WordFrequency:
     def __init__(self):
         self._dictionary = Counter()
         self._total_words = 0
@@ -15,7 +12,7 @@ class WordFrequency(object):
         self._letters = set()
         self._longest_word_length = 0
 
-        self._tokenizer = _parse_into_words
+        self._tokenizer = parse_into_words
 
     def __contains__(self, key):
         """ Check if dictionary contains key """
@@ -51,7 +48,7 @@ class WordFrequency(object):
 
     @property
     def total_words(self):
-        """ int: The sum of all word occurances in the word frequency \
+        """ int: The sum of all word occurrences in the word frequency \
                  dictionary
             Note:
                 Not settable """

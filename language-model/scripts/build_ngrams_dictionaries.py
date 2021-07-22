@@ -1,7 +1,8 @@
 import pickle
 import nltk
 import os
-from utilities.config import OUTPUT_DIR
+from app_config import MODELS_DIR
+
 
 def split_to_sentences(data):
     """
@@ -15,7 +16,7 @@ def split_to_sentences(data):
     """
     sentences = data.split("\n")
 
-    # Additional clearning (This part is already implemented)
+    # Additional cleaning (This part is already implemented)
     # - Remove leading and trailing spaces from each sentence
     # - Drop sentences if they are empty strings.
     sentences = [s.strip() for s in sentences]
@@ -117,7 +118,7 @@ def get_words_with_nplus_frequency(tokenized_sentences, count_threshold):
     # appear at least 'minimum_freq' times.
     closed_vocab = []
 
-    # Get the word couts of the tokenized sentences
+    # Get the word counts of the tokenized sentences
     # Use the function that you defined earlier to count the words
     word_counts = count_words(tokenized_sentences)
 
@@ -183,14 +184,13 @@ def preprocess_data(train_data, count_threshold):
         - Find tokens that appear at least N times in the training data.
         - Replace tokens that appear less than N times by "<unk>" both for training and test data.
     Args:
-        train_data, test_data: List of lists of strings.
+        train_data: List of lists of strings.
         count_threshold: Words whose count is less than this are
                       treated as unknown.
 
     Returns:
         Tuple of
         - training data with low frequent words replaced by "<unk>"
-        - test data with low frequent words replaced by "<unk>"
         - vocabulary of words that appear n times or more in the training data
     """
 
@@ -210,6 +210,8 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
     Args:
         data: List of lists of words
         n: number of words in a sequence
+        start_token: start-of-sentence token
+        end_token: end-of-sentence token
 
     Returns:
         A dictionary that maps a tuple of n-words to its frequency
@@ -251,8 +253,8 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
     return n_grams
 
 
-if __name__ == '__main__':
-    with open(os.path.join(OUTPUT_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
+def main():
+    with open(os.path.join(MODELS_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
         data = f.read()
     print("Data type:", type(data))
     print("Number of letters:", len(data))
@@ -262,8 +264,11 @@ if __name__ == '__main__':
     unigrams = count_n_grams(train_data_processed, 1)
     bigrams = count_n_grams(train_data_processed, 2)
     trigrams = count_n_grams(train_data_processed, 3)
-    print(len(unigrams),len(vocabulary))
-    pickle.dump(unigrams, open(os.path.join(OUTPUT_DIR, "unigrams_tuples"), 'wb'))
-    pickle.dump(bigrams, open(os.path.join(OUTPUT_DIR, "bigrams_tuples"), 'wb'))
-    pickle.dump(trigrams, open(os.path.join(OUTPUT_DIR, "trigrams_tuples"), 'wb'))
-    print ("Dictionaries Built Successfully")
+    pickle.dump(unigrams, open(os.path.join(MODELS_DIR, "unigrams_tuples"), 'wb'))
+    pickle.dump(bigrams, open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'wb'))
+    pickle.dump(trigrams, open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'wb'))
+    print("Dictionaries Built Successfully")
+
+
+if __name__ == '__main__':
+    main()
