@@ -3,12 +3,12 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import re
-from utilities.config import OUTPUT_DIR
+from ..config import MODELS_DIR, BOT_TOKEN, USER_TOKEN, DATASET_FILENAME
 
 SOURCE = 'https://transcripts.foreverdreaming.org'
 CHOSEN_CHARACTER = ['Ted', 'Narrator']
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, CHOSEN_CHARACTER[0] + '.txt')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_FILE = os.path.join(MODELS_DIR, DATASET_FILENAME)
+os.makedirs(MODELS_DIR, exist_ok=True)
 open(OUTPUT_FILE, 'w+', encoding='utf-8').close()
 
 
@@ -37,11 +37,9 @@ def scrape_episode(url):
                     break
                 counter += 1
             if found_alias_index == -1:
-                scene.append(re.sub('(^[a-zA-Z]+:)', 'Person:', paragraph.text, 1))
-            if found_alias_index == 0:
-                scene.append(paragraph.text)
-            if found_alias_index > 0:
-                scene.append(re.sub('(^[a-zA-Z]+:)', CHOSEN_CHARACTER[0] + ':', paragraph.text, 1))
+                scene.append(re.sub('(^[a-zA-Z]+:)', USER_TOKEN, paragraph.text, 1))
+            if found_alias_index >= 0:
+                scene.append(re.sub('(^[a-zA-Z]+:)', BOT_TOKEN, paragraph.text, 1))
         if relevant_scene:
             f.write("\n".join(scene) + '\n')
 

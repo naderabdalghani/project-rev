@@ -1,6 +1,8 @@
-requests~=2.25.1
-beautifulsoup4~=4.9.3
-Flask~=1.1.2
-flask-socketio~=5.0.1
-eventlet~=0.30.2
-torch~=1.8.1+cpu
+requests>=2.26.0
+beautifulsoup4>=4.9.3
+Flask>=2.0.1
+torch>=1.9.0
+transformers>=4.8.2
+tqdm>=4.61.2
+ray>=1.4.1
+comet_ml>=3.13.1

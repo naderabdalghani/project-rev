@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from utilities.config import DEBUG
-from core.core import get_response
+from app_config import DEBUG, BOT_NAME
+from core.core import get_bot_response_as_text
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vnkdjnfjknfl1232#'
@@ -15,7 +15,9 @@ def sessions():
 
 @socket_io.on('chat_send')
 def handle_user_msg(payload):
-    response = {'name': 'Ted', 'reply': get_response(payload['message'])}
+    user_utterance = payload['message']
+    bot_response = get_bot_response_as_text(user_utterance)
+    response = {'name': BOT_NAME, 'reply': bot_response}
     socket_io.emit('chat_response', response)
 
 
