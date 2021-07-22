@@ -9,7 +9,8 @@ import torch.nn as nn
 import torchaudio
 import os
 from tqdm import tqdm
-from ..config import CREATED_JSON_PATH, NUM_OF_PROCESSES, CACHE_DIR, AUDIO_FILE_MAX_DURATION
+from ..config import CREATED_JSON_PATH, NUM_OF_PROCESSES, AUDIO_FILE_MAX_DURATION
+from app_config import CACHE_DIR
 
 
 CACHE_FILE = os.path.join(CACHE_DIR, 'speech_recognizer_features.pickle')

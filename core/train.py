@@ -13,9 +13,10 @@ from torch.utils.data import RandomSampler, DataLoader, SequentialSampler
 from tqdm import trange, tqdm
 from transformers import get_linear_schedule_with_warmup, AdamW, BlenderbotForConditionalGeneration
 
-from .config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, LOGGING_STEPS, MODELS_DIR, SAVE_STEPS, \
-    MAX_CHECKPOINTS, CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM, MODEL_NAME, CACHE_DIR, \
-    TRIAL_NAME, VALIDATE_WHILE_TRAINING
+from .config import MAX_STEPS, NO_DECAY_PARAMS_NAMES, DEVICE, LOGGING_STEPS, SAVE_STEPS, MAX_CHECKPOINTS, \
+    CHECKPOINT_PREFIX, LOSS_FN_IGNORE_INDEX, RESUME_TRAINING, MAX_GRAD_NORM, MODEL_NAME, TRIAL_NAME, \
+    VALIDATE_WHILE_TRAINING
+from app_config import MODELS_DIR, CACHE_DIR
 from keys import COMET_API_KEY
 
 logger = logging.getLogger(__name__)
