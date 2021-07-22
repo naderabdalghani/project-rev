@@ -1,7 +1,8 @@
 import pickle
 import nltk
 import os
-from app_config import MODELS_DIR
+from app_config import DATA_DIR, MODELS_DIR
+from ..config import DATASET_FILENAME, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME
 import logging
 
 logger = logging.getLogger(__name__)
@@ -256,9 +257,9 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
 
 
 def build_dictionary():
-    dataset_path = os.path.join(MODELS_DIR, "en_US.twitter.txt")
+    dataset_path = os.path.join(DATA_DIR, DATASET_FILENAME)
     if os.path.isfile(dataset_path):
-        with open(os.path.join(MODELS_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
+        with open(os.path.join(DATA_DIR, DATASET_FILENAME), encoding='utf-8') as f:
             data = f.read()
         logger.info("Data type:", type(data))
         logger.info("Number of letters:", len(data))
@@ -268,9 +269,9 @@ def build_dictionary():
         unigrams = count_n_grams(train_data_processed, 1)
         bigrams = count_n_grams(train_data_processed, 2)
         trigrams = count_n_grams(train_data_processed, 3)
-        pickle.dump(unigrams, open(os.path.join(MODELS_DIR, "unigrams_tuples"), 'wb'))
-        pickle.dump(bigrams, open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'wb'))
-        pickle.dump(trigrams, open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'wb'))
+        pickle.dump(unigrams, open(os.path.join(MODELS_DIR, UNIGRAMS_DICT_NAME), 'wb'))
+        pickle.dump(bigrams, open(os.path.join(MODELS_DIR, BIGRAMS_DICT_NAME), 'wb'))
+        pickle.dump(trigrams, open(os.path.join(MODELS_DIR, TRIGRAMS_DICT_NAME), 'wb'))
         logger.info("Dictionaries Built Successfully")
     else:
         raise Exception("Dataset was not found please make sure that dataset is downloaded")
