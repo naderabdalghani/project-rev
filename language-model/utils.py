@@ -3,9 +3,9 @@ import gzip
 import contextlib
 
 
-def _parse_into_words(text):
+def parse_into_words(text):
     """ Parse the text into words; currently removes punctuation except for
-        apostrophies.
+        apostrophes.
         Args:
             text (str): The text to split into words
     """
