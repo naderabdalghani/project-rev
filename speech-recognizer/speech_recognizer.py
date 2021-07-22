@@ -37,3 +37,14 @@ def load_saved_instance():
     else:
         raise SpeechRecognizerNotTrained()
 
+
+@torch.no_grad()
+def wav_to_text():
+    global loaded_model
+    if loaded_model is None:
+        load_saved_instance()
+    waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
+    spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
+    decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
+    print(decoded_predictions)
+
