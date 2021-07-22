@@ -3,7 +3,8 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import re
-from ..config import MODELS_DIR, BOT_TOKEN, USER_TOKEN, DATASET_FILENAME
+from ..config import BOT_TOKEN, USER_TOKEN, DATASET_FILENAME
+from app_config import MODELS_DIR
 
 SOURCE = 'https://transcripts.foreverdreaming.org'
 CHOSEN_CHARACTER = ['Ted', 'Narrator']

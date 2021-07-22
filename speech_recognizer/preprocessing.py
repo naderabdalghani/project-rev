@@ -2,7 +2,7 @@ import torch
 import torchaudio
 import torch.nn as nn
 
-from config import FEATURE_USED, SAMPLING_RATE, TEXT_TRANSFORMER
+from .config import FEATURE_USED, SAMPLING_RATE, TEXT_TRANSFORMER
 
 train_audio_transforms = nn.Sequential(
     torchaudio.transforms.MelSpectrogram(sample_rate=SAMPLING_RATE, n_mels=FEATURE_USED['n_features'])
