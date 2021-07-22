@@ -7,13 +7,10 @@ import csv
 from tqdm import tqdm
 from pydub import AudioSegment
 from mutagen.mp3 import MP3
-
-FILE_PATH = 'data/cv-corpus-6.1-2020-12-11/en/validated.tsv'  # Contains file path of validate.tsv
-JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en'  # Contains directory for json files
-NUM_OF_PROCESSES = 30
+from ..config import COMMON_VOICE_TSV_FILE_PATH, CREATED_JSON_PATH, NUM_OF_PROCESSES
 
 
-def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=JSON_PATH):
+def main(file_path=COMMON_VOICE_TSV_FILE_PATH, valid_percent=10, test_percent=10, save_json_path=CREATED_JSON_PATH):
     data = []
     valid_percent = valid_percent
     test_percent = test_percent
@@ -75,7 +72,7 @@ def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=
     print("Done!")
 
 
-def convert(reader_list, convert=True, file_path=FILE_PATH):
+def convert(reader_list, convert=True, file_path=COMMON_VOICE_TSV_FILE_PATH):
     data = []
     directory = file_path.rpartition('/')[0]
     process_name = multiprocessing.current_process().name

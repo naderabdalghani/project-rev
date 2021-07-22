@@ -7,13 +7,10 @@ import csv
 from tqdm import tqdm
 from pydub import AudioSegment
 from mutagen.mp3 import MP3
-
-FILE_PATH = 'data/cv-corpus-6.1-2020-12-11/en/validated.tsv'  # Contains file path of validate.tsv
-JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en'  # Contains directory for json files
-NUM_OF_THREADS = 5
+from ..config import COMMON_VOICE_TSV_FILE_PATH, CREATED_JSON_PATH, NUM_OF_THREADS
 
 
-def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=JSON_PATH):
+def main(file_path=COMMON_VOICE_TSV_FILE_PATH, valid_percent=10, test_percent=10, save_json_path=CREATED_JSON_PATH):
     global data
     data = []
     valid_percent = valid_percent
@@ -75,7 +72,7 @@ def main(file_path=FILE_PATH, valid_percent=10, test_percent=10, save_json_path=
     print("Done!")
 
 
-def convert(lock, reader_list, convert=True, file_path=FILE_PATH):
+def convert(lock, reader_list, convert=True, file_path=COMMON_VOICE_TSV_FILE_PATH):
     global data
     directory = file_path.rpartition('/')[0]
     index = 1
@@ -116,9 +113,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
     Utility script to convert common voice into wav and create the training, validation and test json files. """
                                      )
-    parser.add_argument('--file_path', type=str, default=FILE_PATH,
+    parser.add_argument('--file_path', type=str, default=COMMON_VOICE_TSV_FILE_PATH,
                         help='path to one of the .tsv files found in cv-corpus')
-    parser.add_argument('--save_json_path', type=str, default=JSON_PATH,
+    parser.add_argument('--save_json_path', type=str, default=CREATED_JSON_PATH,
                         help='path to the dir where the json files are supposed to be saved')
     parser.add_argument('--valid_percent', type=int, default=10, required=False,
                         help='percent of clips put into valid.json instead of train.json')

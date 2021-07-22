@@ -1,4 +1,6 @@
-""" Utility script to get mfcc features and store it in the disk
+"""
+Utility script to get mfcc features and store it in the disk.
+This script is run after running mp3_dataset_converter script
 """
 import multiprocessing
 import json
@@ -7,11 +9,10 @@ import torch.nn as nn
 import torchaudio
 import os
 from tqdm import tqdm
+from ..config import CREATED_JSON_PATH, NUM_OF_PROCESSES, CACHE_DIR, AUDIO_FILE_MAX_DURATION
 
-JSON_PATH = 'data/cv-corpus-6.1-2020-12-11/en/'  # Contains directory for json files
-NUM_OF_PROCESSES = 30
-CACHE_FILE = 'features.pickle'
-MAX_DURATION = 10
+
+CACHE_FILE = os.path.join(CACHE_DIR, 'speech_recognizer_features.pickle')
 
 train_audio_transforms = nn.Sequential(
     torchaudio.transforms.MFCC(sample_rate=48000, n_mfcc=16),
@@ -30,14 +31,14 @@ def save_features():
 
     for dataset_type in dataset_types:
         if dataset_type == 'train':
-            with open(JSON_PATH + dataset_type + '_corpus.json') as json_line_file:
+            with open(CREATED_JSON_PATH + dataset_type + '_corpus.json') as json_line_file:
                 for json_line in json_line_file:
                     audio_sample = json.loads(json_line)
                     audio_samples.append(audio_sample)
             extract_dataset_features(audio_samples, dataset_type)
             audio_samples = []
         else:
-            with open(JSON_PATH + dataset_type + '_corpus.json') as json_line_file:
+            with open(CREATED_JSON_PATH + dataset_type + '_corpus.json') as json_line_file:
                 for json_line in json_line_file:
                     audio_sample = json.loads(json_line)
                     audio_samples.append(audio_sample)
@@ -62,7 +63,7 @@ def extract_dataset_features(audio_samples, dataset_type):
             spectrograms += processed_batch
 
     print("----------------- " + dataset_type.capitalize() + "ing dataset conversion done! ------------------")
-    with open(os.path.join(JSON_PATH, dataset_type + '_' + CACHE_FILE), 'wb') as handle:
+    with open(os.path.join(CREATED_JSON_PATH, dataset_type + '_' + CACHE_FILE), 'wb') as handle:
         pickle.dump(spectrograms, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Dumping done!")
 
@@ -72,13 +73,13 @@ def extract_audio_sample_features(audio_samples, dataset_type):
     process_name = multiprocessing.current_process().name
     if dataset_type == 'train':
         for audio_sample in tqdm(audio_samples, desc=process_name, leave=True, position=0):
-            if audio_sample['duration'] < MAX_DURATION:
+            if audio_sample['duration'] < AUDIO_FILE_MAX_DURATION:
                 waveform, _ = torchaudio.load(audio_sample["key"])
                 spectrograms.append((train_audio_transforms(waveform).squeeze(0).transpose(0, 1).tolist(),
                                      audio_sample['text']))
     else:
         for audio_sample in tqdm(audio_samples, desc=process_name, leave=True, position=0):
-            if audio_sample['duration'] < MAX_DURATION:
+            if audio_sample['duration'] < AUDIO_FILE_MAX_DURATION:
                 waveform, _ = torchaudio.load(audio_sample["key"])
                 spectrograms.append((valid_audio_transforms(waveform).squeeze(0).transpose(0, 1).tolist(),
                                      audio_sample['text']))
