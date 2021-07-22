@@ -1,16 +1,35 @@
 import json
-import word_frequency
+from word_frequency import WordFrequency
 import os
 import pickle
 import numpy as np
 from utils import parse_into_words, write_file
+from exceptions import LanguageModelNotTrained
+from scripts.build_ngrams_dictionaries import build_dictionary
 from app_config import MODELS_DIR
+import logging
 
+logger = logging.getLogger(__name__)
 loaded_language_model = None
 
 
 def load_language_model():
-    pass
+    global loaded_language_model
+    saved_unigrams_path = os.path.join(MODELS_DIR, "trigrams_tuples")
+    saved_bigrams_path = os.path.join(MODELS_DIR, "trigrams_tuples")
+    saved_trigrams_path = os.path.join(MODELS_DIR, "trigrams_tuples")
+    if os.path.isfile(saved_unigrams_path) and os.path.isfile(saved_bigrams_path) and os.path.isfile(
+            saved_trigrams_path):
+        loaded_language_model = LanguageModel()
+        loaded_language_model.word_frequency.load_dictionary(os.path.join(MODELS_DIR, "unigrams_tuples"))
+        # self.word_frequency.remove_by_threshold(5)
+        loaded_language_model._bi_grams = pickle.load(open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'rb'))
+        loaded_language_model._tri_grams = pickle.load(open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'rb'))
+        loaded_language_model._names = pickle.load(open(os.path.join(MODELS_DIR, "names"), 'rb'))
+        loaded_language_model._uni_grams_size = loaded_language_model.word_frequency.unique_words
+        logger.info("Language model instance loaded successfully")
+    else:
+        raise LanguageModelNotTrained()
 
 
 class LanguageModel:
@@ -18,42 +37,32 @@ class LanguageModel:
         simple spell checking algorithm. """
 
     def __init__(
-            self,
-            local_dictionary=None,
+            self
     ):
 
+        self._tri_grams = None
+        self._uni_grams_size = None
+        self._bi_grams = None
+        self._names = None
         self._tokenizer = parse_into_words
-        self._word_frequency = word_frequency.WordFrequency()
-
-        if local_dictionary:
-            self._word_frequency.load_dictionary(os.path.join(MODELS_DIR, "unigrams_tuples"))
-            # self._word_frequency.remove_by_threshold(5)
-            self._bi_grams = pickle.load(open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'rb'))
-            self._tri_grams = pickle.load(open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'rb'))
-            self._names = pickle.load(open(os.path.join(MODELS_DIR, "names"), 'rb'))
-            self._uni_grams_size = self._word_frequency.unique_words
-        else:
-            raise Exception("Sorry, There is no Dictionary to load Please enter the path of the dictionary")
+        self.word_frequency = WordFrequency()
 
     def __contains__(self, key):
         """ setup easier known checks """
-        return key in self._word_frequency
+        return key in self.word_frequency
 
     def __getitem__(self, key):
         """ setup easier frequency checks """
-        return self._word_frequency[key]
+        return self.word_frequency[key]
 
     def __iter__(self):
         """ setup iter support """
-        for word in self._word_frequency.dictionary:
+        for word in self.word_frequency.dictionary:
             yield word
 
-    @property
     def word_frequency(self):
-        """ WordFrequency: An encapsulation of the word frequency `dictionary`
-            Note:
-                Not settable """
-        return self._word_frequency
+        """ WordFrequency: An encapsulation of the word frequency `dictionary`"""
+        return self.word_frequency
 
     def split_words(self, text):
         """ Split text into individual `words` using either a simple whitespace
@@ -80,15 +89,15 @@ class LanguageModel:
             Returns:
                 float: The probability that the word is the correct word """
 
-        total_words = self._word_frequency.total_words
-        return self._word_frequency.dictionary[word] / total_words
+        total_words = self.word_frequency.total_words
+        return self.word_frequency.dictionary[word] / total_words
 
     def get_correction(self, words, word, i):
         """ The most probable correct spelling for the word
             Args:
                 words (list): List of tokenized words
                 word (str): The word to correct
-                i (str): Index of the word to be processed
+                i (int): Index of the word to be processed
             Returns:
                 str: The most likely correction """
         probabilities_arr = []
@@ -142,7 +151,7 @@ class LanguageModel:
         return set(
             w
             for w in tmp
-            if (w,) in self._word_frequency.dictionary
+            if (w,) in self.word_frequency.dictionary
         )
 
     def edit_one_letter(self, word):
@@ -158,7 +167,7 @@ class LanguageModel:
         )
         if self.should_check(word) is False:
             return {word}
-        letters = self._word_frequency.letters
+        letters = self.word_frequency.letters
         splits = [(word[:i], word[i:]) for i in range(len(word) + 1)]
         deletes = [L + R[1:] for L, R in splits if R]
         transposes = [L + R[1] + R[0] + R[2:] for L, R in splits if len(R) > 1]
@@ -180,7 +189,7 @@ class LanguageModel:
             pass
 
         if (
-                len(word) > self._word_frequency.longest_word_length + 3  # 2 or 3 ?
+                len(word) > self.word_frequency.longest_word_length + 3  # 2 or 3 ?
         ):  # magic number to allow removal of up to 2 letters.
             return False
 
@@ -249,7 +258,7 @@ class LanguageModel:
         # Get its count.  Otherwise set the count to zero
         # Use the dictionary that has counts for n-grams
         if not tri:
-            previous_n_gram_count = self._word_frequency.dictionary.get(previous_n_gram, 0)
+            previous_n_gram_count = self.word_frequency.dictionary.get(previous_n_gram, 0)
         else:
             previous_n_gram_count = self._bi_grams.get(previous_n_gram, 0)
 
@@ -306,28 +315,27 @@ class LanguageModel:
 
 
 def main():
-    loaded = True
-    ACM = LanguageModel(loaded)
-    # ACM._word_frequency.remove_by_threshold(threshold=15)
-    # correct = ACM.auto_correction_model("I am adpicted to foutbull")
-    # p1 = ACM.estimate_sentence_probability(["how", "are", "you", "doing"])
-    # p2 = ACM.estimate_sentence_probability(["how", "are", "you", "doink"])
-    corrections = []
-    correct = ACM.auto_correction_model("hellow ted how is it goink")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("I am adpicted to foutbull")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("how ar youu doink")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("i red a book")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("i wont a cake")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("i like football and basketball")
-    corrections.append(correct)
-    correct = ACM.auto_correction_model("do you now robin")
-    corrections.append(correct)
-    x = 1
+    build_dictionary()
+    ########################################## FOR TESTING ##########################################
+    # load_language_model()
+    # ACM.word_frequency.remove_by_threshold(threshold=15)
+    # corrections = []
+    # correct = loaded_language_model.auto_correction_model("hellow ted how is it goink")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("I am adpicted to foutbull")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("how ar youu doink")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("i red a book")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("i wont a cake")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("i like football and basketball")
+    # corrections.append(correct)
+    # correct = loaded_language_model.auto_correction_model("do you now robin")
+    # corrections.append(correct)
+    # x = 1
+    ################################################################################################
 
 
 if __name__ == '__main__':
