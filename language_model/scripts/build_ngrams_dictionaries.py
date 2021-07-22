@@ -2,7 +2,9 @@ import pickle
 import nltk
 import os
 from app_config import MODELS_DIR
+import logging
 
+logger = logging.getLogger(__name__)
 
 def split_to_sentences(data):
     """
@@ -66,7 +68,7 @@ def get_tokenized_data(data):
 
     # Get the sentences by splitting up the data
     sentences = split_to_sentences(data)
-    print(len(sentences))
+    logger.info(len(sentences))
     # Get the list of lists of tokens by tokenizing the sentences
     tokenized_sentences = tokenize_sentences(sentences)
 
@@ -258,8 +260,8 @@ def build_dictionary():
     if os.path.isfile(dataset_path):
         with open(os.path.join(MODELS_DIR, "en_US.twitter.txt"), encoding='utf-8') as f:
             data = f.read()
-        print("Data type:", type(data))
-        print("Number of letters:", len(data))
+        logger.info("Data type:", type(data))
+        logger.info("Number of letters:", len(data))
         train_data = get_tokenized_data(data)
         minimum_freq = 2
         train_data_processed, vocabulary = preprocess_data(train_data, minimum_freq)
@@ -269,7 +271,7 @@ def build_dictionary():
         pickle.dump(unigrams, open(os.path.join(MODELS_DIR, "unigrams_tuples"), 'wb'))
         pickle.dump(bigrams, open(os.path.join(MODELS_DIR, "bigrams_tuples"), 'wb'))
         pickle.dump(trigrams, open(os.path.join(MODELS_DIR, "trigrams_tuples"), 'wb'))
-        print("Dictionaries Built Successfully")
+        logger.info("Dictionaries Built Successfully")
     else:
         raise Exception("Dataset was not found please make sure that dataset is downloaded")
 

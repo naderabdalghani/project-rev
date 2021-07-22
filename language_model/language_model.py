@@ -309,12 +309,17 @@ class LanguageModel:
         for i, sentence in enumerate(test_data_processed):
             perplexity += self.estimate_sentence_probability(sentence, tri=True, k=.001)
             if i % 100000 == 0:
-                print(str(i) + " sentences are completed")
+                logger.info(str(i) + " sentences are completed")
         perplexity = perplexity / float(len(test_data_processed))
-        print(perplexity)
+        logger.info(perplexity)
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO
+    )
     build_dictionary()
     ########################################## FOR TESTING ##########################################
     # load_language_model()
