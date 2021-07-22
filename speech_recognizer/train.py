@@ -29,12 +29,12 @@ def train(model, train_loader, criterion, optimizer, scheduler, epoch, step, exp
         scheduler.step()
         step += 1
         if batch_idx % LOGGING_STEPS == 0 or batch_idx == data_len:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            logger.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(spectrograms), data_len, 100. * batch_idx / len(train_loader), loss.item()))
 
 
 def validate(model, valid_loader, criterion, iter_meter, experiment):
-    print('\nValidating...')
+    logger.info('\nValidating...')
     model.eval()
     valid_loss = 0
     test_cer, test_wer = [], []
@@ -61,7 +61,7 @@ def validate(model, valid_loader, criterion, iter_meter, experiment):
     experiment.log_metric('character_error_rate', avg_cer, step=iter_meter.get())
     experiment.log_metric('word_error_rate', avg_wer, step=iter_meter.get())
 
-    print(
+    logger.info(
         'Test set: Average loss: {:.4f}, Average CER: {:4f} Average WER: {:.4f}\n'.format(valid_loss, avg_cer, avg_wer))
 
     return valid_loss

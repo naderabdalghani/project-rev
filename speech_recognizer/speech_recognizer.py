@@ -1,3 +1,4 @@
+import logging
 import os
 
 from comet_ml import Experiment
@@ -19,6 +20,7 @@ from .text_transformer import TextTransformer
 from .train import train, validate
 from .utils import greedy_decode
 
+logger = logging.getLogger(__name__)
 loaded_model = None
 
 
@@ -34,7 +36,7 @@ def load_speech_recognizer():
         ).to(DEVICE)
         loaded_model.load_state_dict(checkpoint['model_state_dict'])
         loaded_model.eval()
-        print("Speech recognizer model instance loaded successfully")
+        logger.info("Speech recognizer model instance loaded successfully")
     else:
         raise SpeechRecognizerNotTrained()
 
@@ -47,7 +49,7 @@ def wav_to_text():
     waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
     spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
     decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
-    print(decoded_predictions)
+    logger.info(decoded_predictions)
 
 
 def load_data():
@@ -71,6 +73,12 @@ def load_data():
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO
+    )
+
     if COMET_API_KEY:
         experiment = Experiment(api_key=COMET_API_KEY, project_name="Speech Recognizer", parse_args=False)
     else:
@@ -85,8 +93,8 @@ def main():
         HYPER_PARAMS['n_class'], HYPER_PARAMS['n_feats'], HYPER_PARAMS['stride'], HYPER_PARAMS['dropout']
     ).to(DEVICE)
 
-    print(model)
-    print('Number of model parameters', sum([param.nelement() for param in model.parameters()]))
+    logger.info(model)
+    logger.info('Number of model parameters', sum([param.nelement() for param in model.parameters()]))
 
     optimizer = optim.AdamW(model.parameters(), HYPER_PARAMS['learning_rate'])
     criterion = nn.CTCLoss(blank=TextTransformer.BLANK_LABEL).to(DEVICE)
@@ -100,9 +108,9 @@ def main():
     for epoch in trange(1, HYPER_PARAMS['EPOCHS'] + 1, leave=True, position=0):
         train(model, train_loader, criterion, optimizer, scheduler, epoch, step, experiment)
         current_test_loss = validate(model, valid_loader, criterion, step, experiment)
-        print("Previous loss = {}\tCurrent loss = {}".format(previous_test_loss, current_test_loss))
+        logger.info("Previous loss = {}\tCurrent loss = {}".format(previous_test_loss, current_test_loss))
         if current_test_loss < previous_test_loss:
-            print("Saving model checkpoint...")
+            logger.info("Saving model checkpoint...")
             torch.save({
                 'epoch': epoch,
                 'hparams': HYPER_PARAMS,
