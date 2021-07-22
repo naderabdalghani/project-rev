@@ -53,9 +53,3 @@ AVOID_BAD_WORDS = False
 
 with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
     BAD_WORDS = f.read().splitlines()
-
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
-    level=logging.INFO
-)

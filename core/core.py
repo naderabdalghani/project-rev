@@ -103,6 +103,12 @@ def load_datasets(tokenizer, force_load_valid=False):
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO
+    )
+
     logger.info("Running on GPU" if CUDA else "Running on CPU")
 
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
