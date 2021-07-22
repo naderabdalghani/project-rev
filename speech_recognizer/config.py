@@ -19,8 +19,6 @@ HYPER_PARAMS = {
     "batch_size": 16,
     "epochs": 20
 }
-CUDA = torch.cuda.is_available()
-DEVICE = torch.device("cuda" if CUDA else "cpu")
 NUM_WORKERS = 4
 TRAIN_DATASET_URL = "train-clean-360"
 VALID_DATASET_URL = "test-clean"

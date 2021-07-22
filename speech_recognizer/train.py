@@ -1,11 +1,12 @@
 import logging
 
-from tqdm import tqdm
 import torch
-
-from .config import DEVICE, LOGGING_STEPS
-from .utils import greedy_decode, calculate_character_error_rate, calculate_word_error_rate
 import torch.nn.functional as F
+from tqdm import tqdm
+
+from .config import LOGGING_STEPS
+from .utils import greedy_decode, calculate_character_error_rate, calculate_word_error_rate
+from app_config import DEVICE
 
 logger = logging.getLogger(__name__)
 
