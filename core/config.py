@@ -1,6 +1,5 @@
 import os.path
 
-import torch
 from ray import tune
 
 from app_config import DATA_DIR
@@ -21,8 +20,6 @@ SAVE_STEPS = 0
 MAX_CHECKPOINTS = 2  # Maximum number of checkpoints. Older checkpoints get deleted if the number exceeds this value
 OVERWRITE_CACHE = False
 RESUME_TRAINING = False
-CUDA = torch.cuda.is_available()
-DEVICE = torch.device("cuda" if CUDA else "cpu")
 HYPER_PARAMS = {
     "LEARNING_RATE": tune.qloguniform(1e-4, 1e-3, 1e-4),
     "WEIGHT_DECAY": tune.quniform(0, 0.25, 0.01),
