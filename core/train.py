@@ -215,8 +215,8 @@ def train(config, train_dataset, valid_dataset, tokenizer, hyper_params_tuning=T
             if inputs.shape[1] > tokenizer.model_max_length or labels.shape[1] > tokenizer.model_max_length:
                 continue
 
-            inputs = inputs.detach().clone().to(DEVICE)
-            labels = labels.detach().clone().to(DEVICE)
+            inputs = inputs.to(DEVICE)
+            labels = labels.to(DEVICE)
 
             labels[labels == tokenizer.pad_token_id] = LOSS_FN_IGNORE_INDEX
             model.train()
