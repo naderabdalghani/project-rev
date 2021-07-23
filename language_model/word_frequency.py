@@ -1,7 +1,8 @@
 import pickle
-from collections import Counter
 import string
-from utils import parse_into_words
+from collections import Counter
+
+from .utils import parse_into_words
 
 
 class WordFrequency:

@@ -1,38 +1,46 @@
 import json
-
-from config import USE_TRIGRAMS, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME, \
-    K_SMOOTHING_FACTOR
-from build_ngrams_dictionaries import build_dictionary
-from word_frequency import WordFrequency
+import logging
 import os
 import pickle
+
 import numpy as np
-from utils import parse_into_words, write_file
-from exceptions import LanguageModelNotTrained
+
 from app_config import MODELS_DIR
-import logging
+from exceptions import LanguageModelNotTrained
+from .utils import parse_into_words, write_file
+from .build_ngrams_dictionaries import build_dictionary
+from .config import USE_TRIGRAMS, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME, \
+    K_SMOOTHING_FACTOR
+from .word_frequency import WordFrequency
 
 logger = logging.getLogger(__name__)
 loaded_language_model = None
 
 
+def correct_user_utterance(user_utterance):
+    global loaded_language_model
+    if loaded_language_model is not None:
+        return loaded_language_model.correct_sentence(user_utterance)
+
+
 def load_language_model():
     global loaded_language_model
-    saved_unigrams_path = os.path.join(MODELS_DIR, UNIGRAMS_DICT_NAME)
-    saved_bigrams_path = os.path.join(MODELS_DIR, BIGRAMS_DICT_NAME)
-    saved_trigrams_path = os.path.join(MODELS_DIR, TRIGRAMS_DICT_NAME)
-    if os.path.isfile(saved_unigrams_path) and os.path.isfile(saved_bigrams_path) and os.path.isfile(
-            saved_trigrams_path):
-        loaded_language_model = LanguageModel()
-        loaded_language_model.word_frequency.load_dictionary(os.path.join(MODELS_DIR, UNIGRAMS_DICT_NAME))
-        # self.word_frequency.remove_by_threshold(5)
-        loaded_language_model._bi_grams = pickle.load(open(os.path.join(MODELS_DIR, BIGRAMS_DICT_NAME), 'rb'))
-        loaded_language_model._tri_grams = pickle.load(open(os.path.join(MODELS_DIR, TRIGRAMS_DICT_NAME), 'rb'))
-        loaded_language_model._names = pickle.load(open(os.path.join(MODELS_DIR, "names"), 'rb'))
-        loaded_language_model._uni_grams_size = loaded_language_model.word_frequency.unique_words
-        logger.info("Language model instance loaded successfully")
-    else:
-        raise LanguageModelNotTrained()
+    if loaded_language_model is None:
+        saved_unigrams_path = os.path.join(MODELS_DIR, UNIGRAMS_DICT_NAME)
+        saved_bigrams_path = os.path.join(MODELS_DIR, BIGRAMS_DICT_NAME)
+        saved_trigrams_path = os.path.join(MODELS_DIR, TRIGRAMS_DICT_NAME)
+        if os.path.isfile(saved_unigrams_path) and os.path.isfile(saved_bigrams_path) and os.path.isfile(
+                saved_trigrams_path):
+            loaded_language_model = LanguageModel()
+            loaded_language_model.word_frequency.load_dictionary(os.path.join(MODELS_DIR, UNIGRAMS_DICT_NAME))
+            # self.word_frequency.remove_by_threshold(5)
+            loaded_language_model._bi_grams = pickle.load(open(os.path.join(MODELS_DIR, BIGRAMS_DICT_NAME), 'rb'))
+            loaded_language_model._tri_grams = pickle.load(open(os.path.join(MODELS_DIR, TRIGRAMS_DICT_NAME), 'rb'))
+            loaded_language_model._names = pickle.load(open(os.path.join(MODELS_DIR, "names"), 'rb'))
+            loaded_language_model._uni_grams_size = loaded_language_model.word_frequency.unique_words
+            logger.info("Language model instance loaded successfully")
+        else:
+            raise LanguageModelNotTrained()
 
 
 class LanguageModel:
