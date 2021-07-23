@@ -1,9 +1,11 @@
-import pickle
-import nltk
-import os
-from app_config import DATA_DIR, MODELS_DIR
-from config import DATASET_FILENAME, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME
 import logging
+import os
+import pickle
+
+import nltk
+
+from app_config import DATA_DIR, MODELS_DIR
+from .config import DATASET_FILENAME, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME
 
 logger = logging.getLogger(__name__)
 

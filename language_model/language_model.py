@@ -1,16 +1,17 @@
 import json
-
-from config import USE_TRIGRAMS, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME, \
-    K_SMOOTHING_FACTOR
-from build_ngrams_dictionaries import build_dictionary
-from word_frequency import WordFrequency
+import logging
 import os
 import pickle
+
 import numpy as np
-from utils import parse_into_words, write_file
-from exceptions import LanguageModelNotTrained
+
 from app_config import MODELS_DIR
-import logging
+from exceptions import LanguageModelNotTrained
+from .utils import parse_into_words, write_file
+from .build_ngrams_dictionaries import build_dictionary
+from .config import USE_TRIGRAMS, UNIGRAMS_DICT_NAME, BIGRAMS_DICT_NAME, TRIGRAMS_DICT_NAME, \
+    K_SMOOTHING_FACTOR
+from .word_frequency import WordFrequency
 
 logger = logging.getLogger(__name__)
 loaded_language_model = None

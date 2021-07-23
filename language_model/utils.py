@@ -1,6 +1,6 @@
-import re
-import gzip
 import contextlib
+import gzip
+import re
 
 
 def parse_into_words(text):
