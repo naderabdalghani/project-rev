@@ -167,6 +167,7 @@
   const loaderElement = document.querySelector('div.lds-ellipsis');
   const transcriptElement = document.querySelector('div#transcript');
   hideLoader();
+  transcriptElement.style.visibility = "hidden";
   const visualValueCount = 16;
   let visualElements;
 
@@ -205,7 +206,7 @@
       }
       this.mediaRecorder.onstop = async function(e) {
         showLoader();
-        const blob = new Blob(recordedChunks, { 'type' : 'audio/wav; codecs=MS_PCM' });
+        const blob = new Blob(recordedChunks, { type : 'audio/mpeg-3' });
         recordedChunks = [];
 
         let formData = new FormData();
@@ -287,9 +288,9 @@
       }
     };
 
-    const processError = () => {
+    const processError = (error) => {
       visualMainElement.classList.add('error');
-      visualMainElement.innerText = 'Please allow access to your microphone.';
+      visualMainElement.innerText = error;
     }
 
     const audioVisualizer = new AudioVisualizer(processFrame, processError);
@@ -304,7 +305,7 @@
       }
     }, false);
     document.addEventListener('keyup', async (event) => {
-      if (event.code === "KeyT" && audioVisualizer.recording) {
+      if (event.code === "KeyT" && audioVisualizer.recording && !visualMainElement.classList.contains('error')) {
         showLoader();
         await audioVisualizer.stopRecording();
       }
