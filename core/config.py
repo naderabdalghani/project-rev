@@ -45,6 +45,7 @@ CHECKPOINT_PREFIX = "core-checkpoint"
 SAVED_INSTANCE_PREFIX = "core-model"
 LOSS_FN_IGNORE_INDEX = -100
 AVOID_BAD_WORDS = False
+USE_BUILTIN_GENERATOR = False
 
 with open(os.path.join(DATA_DIR, "BAD_WORDS.txt")) as f:
     BAD_WORDS = f.read().splitlines()
