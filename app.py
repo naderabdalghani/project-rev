@@ -1,6 +1,5 @@
 import logging
 import os
-import wave
 
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO

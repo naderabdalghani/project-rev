@@ -5,6 +5,7 @@ requests>=2.26.0
 beautifulsoup4>=4.9.3
 tqdm>=4.61.2
 Flask>=2.0.1
+flask-socketio>=5.1.0
 torchaudio>=0.9.0
 numpy>=1.21.0
 pydub>=0.25.1
