@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 import librosa
 import soundfile as sf
+from pydub import AudioSegment
+from pydub.playback import play
 
 synthesizer = None
 embedding = None
@@ -23,6 +25,8 @@ def get_bot_response_as_audio(bot_response_as_text):
     generated_wav = vocoder.infer_waveform(specs[0])
     generated_wav = np.pad(generated_wav, (0, synthesizer.sample_rate), mode="constant")
     sf.write(os.path.join(CACHE_DIR, OUTPUT_FILENAME), generated_wav, synthesizer.sample_rate)
+    output_audio = AudioSegment.from_wav(os.path.join(CACHE_DIR, OUTPUT_FILENAME))
+    play(output_audio)
 
 
 def load_speech_synthesizer():
