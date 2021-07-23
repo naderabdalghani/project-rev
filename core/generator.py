@@ -201,3 +201,37 @@ def beam_search_decode(model, tokenizer, encoder_input_ids, n_beams, decoder_inp
     best = torch.topk(final_prob, 1).indices
     return final[best]
 
+
+@torch.no_grad()
+def generator(model, tokenizer, input_ids, decoder_algorithm="beam", num_beams=3, top_p=0.9, top_k=5, min_length=20,
+              max_length=60):
+    decoder_input_ids = tokenizer.encode(tokenizer.bos_token, return_tensors='pt', add_prefix_space=False,
+                                         add_special_tokens=False).to(DEVICE)
+    if min_length > max_length:
+        max_length = min_length
+
+    if decoder_algorithm == "greedy":
+        bot_response = greedy_decode(input_ids, model, tokenizer, decoder_input_ids, min_length=min_length,
+                                     max_length=max_length)
+    elif decoder_algorithm == "top_k":
+        bot_response = top_k_decode(top_k, input_ids, model, tokenizer, decoder_input_ids, min_length=min_length,
+                                    max_length=max_length)
+    elif decoder_algorithm == "best":
+        bot_response = best_search_decode(model, tokenizer, input_ids, 1, min_length, decoder_input_ids)
+    elif decoder_algorithm == "top_p":
+        bot_response = top_p_decode(top_p, input_ids, model, tokenizer, decoder_input_ids, min_length=min_length,
+                                    max_length=max_length)
+    else:
+        bot_response = beam_search_decode(model, tokenizer, input_ids, num_beams, decoder_input_ids,
+                                          min_length=min_length - 1, max_length=max_length)
+
+    if bot_response[0] != tokenizer.bos_token_id:
+        bot_response = torch.cat([torch.tensor([tokenizer.bos_token_id]), bot_response])
+
+
+    if bot_response.shape[0] == max_length:
+        bot_response[-1] = tokenizer.eos_token_id
+    if bot_response.shape[0] > max_length:
+        bot_response = torch.cat([bot_response[:max_length - 1], torch.tensor([tokenizer.eos_token_id])])
+    return bot_response
+
