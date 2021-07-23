@@ -1,14 +1,20 @@
+import logging
 import os
+import wave
 
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
+from pydub import AudioSegment
+
 from app_config import DEBUG, BOT_NAME, TEXT_CHAT_MODE, CACHE_DIR
 from keys import FLASK_SECRET_KEY
 from core.core import get_bot_response_as_text
-from language_model.language_model import load_language_model
-from speech_recognizer.speech_recognizer import load_speech_recognizer
+from language_model.language_model import load_language_model, correct_user_utterance
+from speech_recognizer.speech_recognizer import load_speech_recognizer, wav_to_text
+from speech_recognizer.config import SAMPLING_RATE
 from core.core import load_core_model
 
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 socket_io = SocketIO(app)
@@ -31,11 +37,20 @@ def initialize():
 
 @app.route('/send_wav', methods=['POST'])
 def handle_user_wav():
-    wav_file = request.files['audio_data']
-    save_path = os.path.join(CACHE_DIR, "input.wav")
-    wav_file.save(save_path)
-    response = "test"
-    return jsonify(response)
+    audio_data = request.files['audio_data']
+    audio_data_path = os.path.join(CACHE_DIR, "audio_data")
+    audio_data.save(audio_data_path)
+    sound = AudioSegment.from_file(audio_data_path)
+    sound = sound.set_frame_rate(SAMPLING_RATE)
+    wav_file_path = os.path.join(CACHE_DIR, "input.wav")
+    sound.export(wav_file_path, format="wav")
+    user_utterance = wav_to_text(wav_file_path)
+    logger.info(user_utterance)
+    corrected_user_utterance = correct_user_utterance(user_utterance)
+    logger.info(corrected_user_utterance)
+    bot_response = get_bot_response_as_text(corrected_user_utterance)
+    logger.info(bot_response)
+    return jsonify(bot_response)
 
 
 @socket_io.on('chat_send')
