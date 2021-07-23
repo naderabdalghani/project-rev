@@ -29,15 +29,18 @@ chat_history = []
 bad_words_ids = []
 
 
-def load_core_model():
-    global saved_instance_path, loaded_core_model, loaded_tokenizer
+def load_core_model(load_base_model=False):
+    global saved_instance_path, loaded_core_model, loaded_tokenizer, chat_history
+    chat_history = []
     if loaded_core_model is None or loaded_tokenizer is None:
         if saved_instance_path is None:
-            saved_instance_path = get_saved_instance_path()
-            if saved_instance_path is None:
+            if not load_base_model:
+                saved_instance_path = get_saved_instance_path()
+            if saved_instance_path is None and not load_base_model:
                 raise CoreModelNotTrained()
-        logger.info("Loading core model from {}".format(saved_instance_path))
-        loaded_core_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
+        source = saved_instance_path if saved_instance_path is not None else MODEL_NAME
+        logger.info("Loading core model from {}".format(source))
+        loaded_core_model, loaded_tokenizer = load_saved_instance(saved_instance_path, load_base_model)
         loaded_core_model.eval()
 
 
@@ -68,9 +71,13 @@ def update_chat_history(tokenizer, new_input_ids, from_bot=False):
         return new_input_ids
 
 
-def load_saved_instance(path):
+def load_saved_instance(path, load_base_model=False):
     global bad_words_ids
-    model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
+    if load_base_model:
+        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR) \
+            .to(DEVICE)
+    else:
+        model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
     if AVOID_BAD_WORDS:
         bad_words_ids = [tokenizer(bad_word, add_prefix_space=True, add_special_tokens=False).input_ids
