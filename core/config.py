@@ -7,7 +7,7 @@ from app_config import DATA_DIR
 MODEL_NAME = 'facebook/blenderbot-400M-distill'
 HYPER_PARAMS_TUNING = True
 TRIAL_NAME = ""
-VALIDATE_WHILE_TRAINING = False
+VALIDATE_WHILE_TRAINING = True
 DO_TRAIN = True
 DO_VALID = False
 NUM_SAMPLES = 20
@@ -29,11 +29,11 @@ HYPER_PARAMS = {
     "BATCH_SIZE": 2
 }
 DEFAULT_HYPER_PARAMS = {
-    "LEARNING_RATE": 1e-5,
-    "WEIGHT_DECAY": 0.15,
-    "ADAM_EPSILON": 2.5e-8,
+    "LEARNING_RATE": 5e-5,
+    "WEIGHT_DECAY": 0.0,
+    "ADAM_EPSILON": 1e-8,
     "NUM_TRAIN_EPOCHS": 5,
-    "WARMUP_STEPS": 600,
+    "WARMUP_STEPS": 0,
     "BATCH_SIZE": 4
 }
 MAX_GRAD_NORM = 1.0
