@@ -1,8 +1,8 @@
-from synthesizer.utils.text import text_to_sequence
-from synthesizer.infolog import log
-from synthesizer.models import create_model
-from synthesizer.utils import plot
-from synthesizer import audio
+from .utils.text import text_to_sequence
+from .infolog import log
+from .models import create_model
+from .utils import plot
+from .audio import save_wav, inv_mel_spectrogram, inv_linear_spectrogram
 import tensorflow as tf
 import numpy as np
 import os
@@ -191,8 +191,8 @@ class Tacotron2:
             
             if log_dir is not None:
                 #save wav (mel -> wav)
-                wav = audio.inv_mel_spectrogram(mel.T, hparams)
-                audio.save_wav(wav, os.path.join(log_dir, "wavs/wav-{}-mel.wav".format(basenames[i])), sr=hparams.sample_rate)
+                wav = inv_mel_spectrogram(mel.T, hparams)
+                save_wav(wav, os.path.join(log_dir, "wavs/wav-{}-mel.wav".format(basenames[i])), sr=hparams.sample_rate)
                 
                 #save alignments
                 plot.plot_alignment(alignments[i], os.path.join(log_dir, "plots/alignment-{}.png".format(basenames[i])),
@@ -204,8 +204,8 @@ class Tacotron2:
                 
                 if hparams.predict_linear:
                     #save wav (linear -> wav)
-                    wav = audio.inv_linear_spectrogram(linears[i].T, hparams)
-                    audio.save_wav(wav, os.path.join(log_dir, "wavs/wav-{}-linear.wav".format(basenames[i])), sr=hparams.sample_rate)
+                    wav = inv_linear_spectrogram(linears[i].T, hparams)
+                    save_wav(wav, os.path.join(log_dir, "wavs/wav-{}-linear.wav".format(basenames[i])), sr=hparams.sample_rate)
                     
                     #save linear spectrogram plot
                     plot.plot_spectrogram(linears[i], os.path.join(log_dir, "plots/linear-{}.png".format(basenames[i])),

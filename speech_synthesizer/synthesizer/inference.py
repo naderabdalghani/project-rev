@@ -1,8 +1,7 @@
-from synthesizer.tacotron2 import Tacotron2
-from synthesizer.hparams import hparams
-from multiprocess.pool import Pool  # You're free to use either one
-#from multiprocessing import Pool   # 
-from synthesizer import audio
+from .tacotron2 import Tacotron2
+from .hparams import hparams
+from multiprocessing import Pool
+from .audio import melspectrogram, inv_mel_spectrogram
 from pathlib import Path
 from typing import Union, List
 import tensorflow as tf
@@ -124,7 +123,7 @@ class Synthesizer:
         else:
             wav = fpath_or_wav
         
-        mel_spectrogram = audio.melspectrogram(wav, hparams).astype(np.float32)
+        mel_spectrogram = melspectrogram(wav, hparams).astype(np.float32)
         return mel_spectrogram
     
     @staticmethod
@@ -133,4 +132,4 @@ class Synthesizer:
         Inverts a mel spectrogram using Griffin-Lim. The mel spectrogram is expected to have been built
         with the same parameters present in hparams.py.
         """
-        return audio.inv_mel_spectrogram(mel, hparams)
+        return inv_mel_spectrogram(mel, hparams)
