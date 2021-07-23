@@ -36,6 +36,7 @@ def load_core_model():
             saved_instance_path = get_saved_instance_path()
             if saved_instance_path is None:
                 raise CoreModelNotTrained()
+        logger.info("Loading core model from {}".format(saved_instance_path))
         loaded_core_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
         loaded_core_model.eval()
 

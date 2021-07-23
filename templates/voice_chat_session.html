@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <title>project rev</title>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body,
+    main {
+      margin: 0;
+      padding: 0;
+      min-width: 100%;
+      min-height: 100vh;
+      font-family: sans-serif;
+      text-align: center;
+      color: #8cc63f;
+      background: #000;
+    }
+
+    button {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 5em;
+      height: 2em;
+      margin-left: -2.5em;
+      margin-top: -1em;
+      z-index: 100;
+      padding: .25em .5em;
+      color: #8cc63f;
+      background: #000;
+      border: 1px solid #8cc63f;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1.15em;
+      font-weight: 200;
+      box-shadow: 0 0 10px rgba(140, 198, 63, 0.5);
+      transition: box-shadow .5s;
+    }
+
+    button:hover {
+      box-shadow: 0 0 30px 5px rgba(140, 198, 63, 0.75);
+    }
+
+    main {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    main>div {
+      display: inline-block;
+      width: 3px;
+      height: 100px;
+      margin: 0 7px;
+      background: currentColor;
+      transform: scaleY(.5);
+      opacity: .25;
+    }
+
+    main.error {
+      color: #f7451d;
+      min-width: 20em;
+      max-width: 30em;
+      margin: 0 auto;
+      white-space: pre-line;
+    }
+
+    #transcript {
+      position: fixed;
+      top: 60%;
+      width: 100vw;
+      padding-left: 20vw;
+      padding-right: 20vw;
+      font-size: x-large;
+    }
+
+    .lds-ellipsis {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 80px;
+      height: 80px;
+      transform: translate(-50%, -50%);
+    }
+
+    .lds-ellipsis div {
+      position: absolute;
+      top: 33px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #8cc63f;
+      animation-timing-function: cubic-bezier(0, 1, 1, 0);
+    }
+
+    .lds-ellipsis div:nth-child(1) {
+      left: 8px;
+      animation: lds-ellipsis1 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(2) {
+      left: 8px;
+      animation: lds-ellipsis2 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(3) {
+      left: 32px;
+      animation: lds-ellipsis2 0.6s infinite;
+    }
+
+    .lds-ellipsis div:nth-child(4) {
+      left: 56px;
+      animation: lds-ellipsis3 0.6s infinite;
+    }
+
+    @keyframes lds-ellipsis1 {
+      0% {
+        transform: scale(0);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes lds-ellipsis3 {
+      0% {
+        transform: scale(1);
+      }
+      100% {
+        transform: scale(0);
+      }
+    }
+
+    @keyframes lds-ellipsis2 {
+      0% {
+        transform: translate(0, 0);
+      }
+      100% {
+        transform: translate(24px, 0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>
+  <main>
+      <button onclick="init()">Start</button>
+  </main>
+  <div id="transcript">Hold 'T' to talk to Ted!</div>
+</body>
+
+
+<script>
+  var recordedChunks = [];
+  const visualMainElement = document.querySelector('main');
+  const loaderElement = document.querySelector('div.lds-ellipsis');
+  const transcriptElement = document.querySelector('div#transcript');
+  hideLoader();
+  const visualValueCount = 16;
+  let visualElements;
+
+  function showLoader() {
+    transcriptElement.style.visibility = "hidden";
+    loaderElement.style.visibility = "visible";
+  }
+
+  function hideLoader() {
+    transcriptElement.style.visibility = "visible";
+    loaderElement.style.visibility = "hidden";
+  }
+
+  const createDOMElements = () => {
+    let i;
+    for (i = 0; i < visualValueCount; ++i) {
+      const elm = document.createElement('div');
+      visualMainElement.appendChild(elm);
+    }
+    visualElements = document.querySelectorAll('main div');
+  };
+
+  class AudioVisualizer {
+    constructor(processFrame, processError) {
+      recordedChunks = [];
+      this.processFrame = processFrame;
+      this.processError = processError;
+      this.recording = false;
+      this.connectStream = this.connectStream.bind(this);
+    }
+
+    connectStream(stream) {
+      this.mediaRecorder = new MediaRecorder(stream);
+      this.mediaRecorder.ondataavailable = function(chunk) {
+        recordedChunks.push(chunk.data);
+      }
+      this.mediaRecorder.onstop = async function(e) {
+        showLoader();
+        const blob = new Blob(recordedChunks, { 'type' : 'audio/wav; codecs=MS_PCM' });
+        recordedChunks = [];
+
+        let formData = new FormData();
+        formData.append("audio_data", blob);
+
+        await fetch("/send_wav", {
+            method: 'POST',
+            body: formData
+         }).then(response => response.json())
+            .then(async result => {
+              console.log(result);
+              hideLoader();
+            });
+      }
+      this.mediaRecorder.start();
+      this.analyser = this.audioContext.createAnalyser();
+      const source = this.audioContext.createMediaStreamSource(stream);
+      source.connect(this.analyser);
+      this.analyser.smoothingTimeConstant = 0.5;
+      this.analyser.fftSize = 32;
+      this.initRenderLoop(this.analyser);
+    }
+
+    initRenderLoop() {
+      const frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+      const processFrame = this.processFrame || (() => { });
+
+      const renderFrame = () => {
+        this.analyser.getByteFrequencyData(frequencyData);
+        processFrame(frequencyData);
+        this.animationHandle = requestAnimationFrame(renderFrame);
+      };
+      this.animationHandle = requestAnimationFrame(renderFrame);
+    }
+
+    startRecording() {
+      visualMainElement.style.visibility = "visible";
+      this.audioContext = new AudioContext({sampleRate: 16000});
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(this.connectStream)
+      .catch((error) => {
+        if (this.processError) {
+          this.processError(error);
+        }
+      });
+      this.recording = true;
+    };
+
+    stopRecording() {
+      visualMainElement.style.visibility = "hidden";
+      cancelAnimationFrame(this.animationHandle);
+      this.animationHandle = undefined;
+      this.recording = false;
+      this.mediaRecorder.stop();
+      this.audioContext.close();
+    };
+  }
+
+  async function loadModules() {
+    return fetch("/initialize").then((response)=>response.json()).then((responseJson) => { return responseJson });
+  }
+
+  async function init() {
+    showLoader();
+    visualMainElement.innerHTML = '';
+    createDOMElements();
+    visualMainElement.style.visibility = "hidden";
+
+    // Swapping values around for a better visual effect
+    const dataMap = { 0: 3, 1: 4, 2: 5, 3: 3, 4: 2, 5: 1, 6: 2, 7: 1, 8: 0, 9: 4, 10: 3, 11: 1, 12: 3, 13: 4, 14: 4, 15: 5};
+    const processFrame = (data) => {
+      const values = Object.values(data);
+      let i;
+      for (i = 0; i < visualValueCount; ++i) {
+        const value = values[dataMap[i]] / 255;
+        const elmStyles = visualElements[i].style;
+        elmStyles.transform = `scaleY( ${value} )`;
+        elmStyles.opacity = Math.max(.25, value);
+      }
+    };
+
+    const processError = () => {
+      visualMainElement.classList.add('error');
+      visualMainElement.innerText = 'Please allow access to your microphone.';
+    }
+
+    const audioVisualizer = new AudioVisualizer(processFrame, processError);
+
+    const response = await loadModules();
+    console.log(response);
+    hideLoader();
+
+    document.addEventListener('keydown', (event) => {
+      if (event.code === "KeyT" && !event.repeat && !audioVisualizer.recording && loaderElement.style.visibility === "hidden") {
+        audioVisualizer.startRecording();
+      }
+    }, false);
+    document.addEventListener('keyup', async (event) => {
+      if (event.code === "KeyT" && audioVisualizer.recording) {
+        showLoader();
+        await audioVisualizer.stopRecording();
+      }
+    }, false);
+  }
+</script>
+
+</html>
