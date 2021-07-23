@@ -6,7 +6,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from pydub import AudioSegment
 
-from app_config import DEBUG, BOT_NAME, TEXT_CHAT_MODE, CACHE_DIR
+from app_config import DEBUG, BOT_NAME, TEXT_CHAT_MODE, CACHE_DIR, INPUT_FILENAME
 from keys import FLASK_SECRET_KEY
 from core.core import get_bot_response_as_text
 from language_model.language_model import load_language_model, correct_user_utterance
@@ -42,7 +42,7 @@ def handle_user_wav():
     audio_data.save(audio_data_path)
     sound = AudioSegment.from_file(audio_data_path)
     sound = sound.set_frame_rate(SAMPLING_RATE)
-    wav_file_path = os.path.join(CACHE_DIR, "input.wav")
+    wav_file_path = os.path.join(CACHE_DIR, INPUT_FILENAME)
     sound.export(wav_file_path, format="wav")
     user_utterance = wav_to_text(wav_file_path)
     logger.info(user_utterance)

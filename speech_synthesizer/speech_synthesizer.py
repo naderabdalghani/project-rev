@@ -1,6 +1,6 @@
 import os
 
-from app_config import MODELS_DIR, CACHE_DIR
+from app_config import MODELS_DIR, CACHE_DIR, OUTPUT_FILENAME
 from exceptions import SpeechSynthesizerCannotBeLoaded
 from .config import SAVED_INSTANCE_DIR, TED_VOICE_SAMPLE_PATH
 from .synthesizer.inference import Synthesizer
@@ -22,7 +22,7 @@ def get_bot_response_as_audio(bot_response_as_text):
     specs = synthesizer.synthesize_spectrograms([bot_response_as_text], [embedding])
     generated_wav = vocoder.infer_waveform(specs[0])
     generated_wav = np.pad(generated_wav, (0, synthesizer.sample_rate), mode="constant")
-    sf.write(os.path.join(CACHE_DIR, 'output.wav'), generated_wav, synthesizer.sample_rate)
+    sf.write(os.path.join(CACHE_DIR, OUTPUT_FILENAME), generated_wav, synthesizer.sample_rate)
 
 
 def load_speech_synthesizer():
