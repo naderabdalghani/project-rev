@@ -21,21 +21,21 @@ from .utils import greedy_decode
 from app_config import MODELS_DIR, CUDA, DEVICE
 
 logger = logging.getLogger(__name__)
-loaded_model = None
+loaded_speech_recognizer = None
 
 
 def load_speech_recognizer():
-    global loaded_model
+    global loaded_speech_recognizer
     saved_instance_path = os.path.join(MODELS_DIR, SAVED_INSTANCE_NAME)
     if os.path.isfile(saved_instance_path):
         checkpoint = torch.load(saved_instance_path, map_location=DEVICE)
         hyper_params = checkpoint['hparams']
-        loaded_model = SpeechRecognitionModel(
+        loaded_speech_recognizer = SpeechRecognitionModel(
             hyper_params['n_cnn_layers'], hyper_params['n_rnn_layers'], hyper_params['rnn_dim'],
             hyper_params['n_class'], hyper_params['n_feats'], hyper_params['stride'], hyper_params['dropout']
         ).to(DEVICE)
-        loaded_model.load_state_dict(checkpoint['model_state_dict'])
-        loaded_model.eval()
+        loaded_speech_recognizer.load_state_dict(checkpoint['model_state_dict'])
+        loaded_speech_recognizer.eval()
         logger.info("Speech recognizer model instance loaded successfully")
     else:
         raise SpeechRecognizerNotTrained()
@@ -43,12 +43,12 @@ def load_speech_recognizer():
 
 @torch.no_grad()
 def wav_to_text():
-    global loaded_model
-    if loaded_model is None:
+    global loaded_speech_recognizer
+    if loaded_speech_recognizer is None:
         load_speech_recognizer()
     waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
     spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
-    decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
+    decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_speech_recognizer(spectrogram), dim=2))
     logger.info(decoded_predictions)
 
 
