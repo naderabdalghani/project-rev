@@ -42,14 +42,14 @@ def load_speech_recognizer():
 
 
 @torch.no_grad()
-def wav_to_text():
+def wav_to_text(wav_file_path):
     global loaded_speech_recognizer
     if loaded_speech_recognizer is None:
         load_speech_recognizer()
-    waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
+    waveform, _ = torchaudio.load(wav_file_path)
     spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
     decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_speech_recognizer(spectrogram), dim=2))
-    logger.info(decoded_predictions)
+    return decoded_predictions[0]
 
 
 def load_data():
@@ -123,4 +123,4 @@ def main():
 
 
 if __name__ == '__main__':
-    wav_to_text()
+    main()
