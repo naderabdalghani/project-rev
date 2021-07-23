@@ -228,10 +228,8 @@ def generator(model, tokenizer, input_ids, decoder_algorithm="beam", num_beams=3
     if bot_response[0] != tokenizer.bos_token_id:
         bot_response = torch.cat([torch.tensor([tokenizer.bos_token_id]), bot_response])
 
-
     if bot_response.shape[0] == max_length:
         bot_response[-1] = tokenizer.eos_token_id
     if bot_response.shape[0] > max_length:
         bot_response = torch.cat([bot_response[:max_length - 1], torch.tensor([tokenizer.eos_token_id])])
     return bot_response
-

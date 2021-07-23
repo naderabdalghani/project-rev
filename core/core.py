@@ -13,9 +13,10 @@ from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest import BasicVariantGenerator
 
+from .generator import generator
 from .config import MODEL_NAME, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, SAVED_INSTANCE_PREFIX, \
     HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, DEFAULT_HYPER_PARAMS, HYPER_PARAMS_TUNING, \
-    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING
+    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING, USE_BUILTIN_GENERATOR
 from exceptions import CoreModelNotTrained
 from app_config import MODELS_DIR, CACHE_DIR, DEVICE, CUDA
 from .preprocessing import ConversationDataset
@@ -50,8 +51,11 @@ def get_bot_response_as_text(user_utterance):
     global loaded_core_model, loaded_tokenizer
     new_user_input_ids = loaded_tokenizer.encode(user_utterance, truncation=True, return_tensors='pt').to(DEVICE)
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
-    bot_response_ids = loaded_core_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
-        if AVOID_BAD_WORDS else loaded_core_model.generate(flattened_chat_history).to(DEVICE)
+    if USE_BUILTIN_GENERATOR:
+        bot_response_ids = loaded_core_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
+            if AVOID_BAD_WORDS else loaded_core_model.generate(flattened_chat_history).to(DEVICE)
+    else:
+        bot_response_ids = generator(loaded_core_model, loaded_tokenizer, flattened_chat_history)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
@@ -79,7 +83,7 @@ def load_saved_instance(path, load_base_model=False):
     else:
         model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
-    if AVOID_BAD_WORDS:
+    if AVOID_BAD_WORDS and USE_BUILTIN_GENERATOR:
         bad_words_ids = [tokenizer(bad_word, add_prefix_space=True, add_special_tokens=False).input_ids
                          for bad_word in BAD_WORDS]
     return model, tokenizer
