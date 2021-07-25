@@ -1,18 +1,22 @@
 import logging
 import os
+import warnings
 
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from pydub import AudioSegment
+from silence_tensorflow import silence_tensorflow
 
 from app_config import DEBUG, BOT_NAME, TEXT_CHAT_MODE, CACHE_DIR, INPUT_FILENAME
+from core.core import get_bot_response_as_text, load_core_model
 from keys import FLASK_SECRET_KEY
-from core.core import get_bot_response_as_text
-from language_model.language_model import load_language_model, correct_user_utterance
-from speech_recognizer.speech_recognizer import load_speech_recognizer, wav_to_text
+from language_model.language_model import correct_user_utterance
 from speech_recognizer.config import SAMPLING_RATE
-from core.core import load_core_model
+from speech_recognizer.speech_recognizer import wav_to_text
+from speech_synthesizer.speech_synthesizer import get_bot_response_as_audio, load_speech_synthesizer
 
+silence_tensorflow()
+warnings.filterwarnings("ignore", category=FutureWarning)
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
