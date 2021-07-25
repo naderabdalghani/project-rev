@@ -12,45 +12,45 @@ from tqdm import trange
 
 from exceptions import SpeechRecognizerNotTrained
 from keys import COMET_API_KEY
-from .config import HYPER_PARAMS, DATA_DIR, CUDA, NUM_WORKERS, TRAIN_DATASET_URL, VALID_DATASET_URL, DEVICE, \
-    SAVED_INSTANCE_NAME
+from .config import HYPER_PARAMS, DATA_DIR, NUM_WORKERS, TRAIN_DATASET_URL, VALID_DATASET_URL, SAVED_INSTANCE_NAME
 from .preprocessing import preprocess, valid_audio_transforms
 from .model import SpeechRecognitionModel
 from .text_transformer import TextTransformer
 from .train import train, validate
 from .utils import greedy_decode
-from app_config import MODELS_DIR
+from app_config import MODELS_DIR, CUDA, DEVICE
 
 logger = logging.getLogger(__name__)
-loaded_model = None
+loaded_speech_recognizer = None
 
 
 def load_speech_recognizer():
-    global loaded_model
-    saved_instance_path = os.path.join(MODELS_DIR, SAVED_INSTANCE_NAME)
-    if os.path.isfile(saved_instance_path):
-        checkpoint = torch.load(saved_instance_path, map_location=DEVICE)
-        hyper_params = checkpoint['hparams']
-        loaded_model = SpeechRecognitionModel(
-            hyper_params['n_cnn_layers'], hyper_params['n_rnn_layers'], hyper_params['rnn_dim'],
-            hyper_params['n_class'], hyper_params['n_feats'], hyper_params['stride'], hyper_params['dropout']
-        ).to(DEVICE)
-        loaded_model.load_state_dict(checkpoint['model_state_dict'])
-        loaded_model.eval()
-        logger.info("Speech recognizer model instance loaded successfully")
-    else:
-        raise SpeechRecognizerNotTrained()
+    global loaded_speech_recognizer
+    if loaded_speech_recognizer is None:
+        saved_instance_path = os.path.join(MODELS_DIR, SAVED_INSTANCE_NAME)
+        if os.path.isfile(saved_instance_path):
+            checkpoint = torch.load(saved_instance_path, map_location=DEVICE)
+            hyper_params = checkpoint['hparams']
+            loaded_speech_recognizer = SpeechRecognitionModel(
+                hyper_params['n_cnn_layers'], hyper_params['n_rnn_layers'], hyper_params['rnn_dim'],
+                hyper_params['n_class'], hyper_params['n_feats'], hyper_params['stride'], hyper_params['dropout']
+            ).to(DEVICE)
+            loaded_speech_recognizer.load_state_dict(checkpoint['model_state_dict'])
+            loaded_speech_recognizer.eval()
+            logger.info("Speech recognizer model instance loaded successfully")
+        else:
+            raise SpeechRecognizerNotTrained()
 
 
 @torch.no_grad()
-def wav_to_text():
-    global loaded_model
-    if loaded_model is None:
+def wav_to_text(wav_file_path):
+    global loaded_speech_recognizer
+    if loaded_speech_recognizer is None:
         load_speech_recognizer()
-    waveform, _ = torchaudio.load(os.path.join(DATA_DIR, 'test1.wav'))
+    waveform, _ = torchaudio.load(wav_file_path)
     spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
-    decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_model(spectrogram), dim=2))
-    logger.info(decoded_predictions)
+    decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_speech_recognizer(spectrogram), dim=2))
+    return decoded_predictions[0]
 
 
 def load_data():
@@ -124,4 +124,4 @@ def main():
 
 
 if __name__ == '__main__':
-    wav_to_text()
+    main()

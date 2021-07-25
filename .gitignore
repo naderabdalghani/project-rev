@@ -148,8 +148,8 @@ crashlytics-build.properties
 fabric.properties
 
 # Project Custom
-cache/
-models/
-data/
-core/runs/
+/cache/
+/models/
+/data/
+/core/runs/
 keys.py

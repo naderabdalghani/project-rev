@@ -13,43 +13,57 @@ from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest import BasicVariantGenerator
 
-from .config import MODEL_NAME, DEVICE, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, SAVED_INSTANCE_PREFIX, \
-    HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, CUDA, DEFAULT_HYPER_PARAMS, HYPER_PARAMS_TUNING, \
-    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING
+from .generator import generator
+from .config import MODEL_NAME, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, SAVED_INSTANCE_PREFIX, \
+    HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, DEFAULT_HYPER_PARAMS, HYPER_PARAMS_TUNING, \
+    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING, USE_BUILTIN_GENERATOR, USE_HISTORY
 from exceptions import CoreModelNotTrained
-from app_config import MODELS_DIR, CACHE_DIR
+from app_config import MODELS_DIR, CACHE_DIR, DEVICE, CUDA
 from .preprocessing import ConversationDataset
 from .train import train, validate
 
 logger = logging.getLogger(__name__)
 saved_instance_path = None
-loaded_model = None
+loaded_core_model = None
 loaded_tokenizer = None
 chat_history = []
 bad_words_ids = []
 
 
+def load_core_model(load_base_model=False):
+    global saved_instance_path, loaded_core_model, loaded_tokenizer, chat_history
+    chat_history = []
+    if loaded_core_model is None or loaded_tokenizer is None:
+        if saved_instance_path is None:
+            if not load_base_model:
+                saved_instance_path = get_saved_instance_path()
+            if saved_instance_path is None and not load_base_model:
+                raise CoreModelNotTrained()
+        source = saved_instance_path if saved_instance_path is not None else MODEL_NAME
+        logger.info("Loading core model from {}".format(source))
+        loaded_core_model, loaded_tokenizer = load_saved_instance(saved_instance_path, load_base_model)
+        loaded_core_model.eval()
+
+
 @torch.no_grad()
 def get_bot_response_as_text(user_utterance):
-    global saved_instance_path, loaded_model, loaded_tokenizer, chat_history
-    if saved_instance_path is None:
-        saved_instance_path = get_saved_instance_path()
-        if saved_instance_path is None:
-            raise CoreModelNotTrained()
-    if loaded_model is None or loaded_tokenizer is None:
-        loaded_model, loaded_tokenizer = load_saved_instance(saved_instance_path)
-        loaded_model.eval()
-
+    load_core_model()
+    global loaded_core_model, loaded_tokenizer
     new_user_input_ids = loaded_tokenizer.encode(user_utterance, truncation=True, return_tensors='pt').to(DEVICE)
     flattened_chat_history = update_chat_history(loaded_tokenizer, new_user_input_ids)
-    bot_response_ids = loaded_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
-        if AVOID_BAD_WORDS else loaded_model.generate(flattened_chat_history).to(DEVICE)
+    if USE_BUILTIN_GENERATOR:
+        bot_response_ids = loaded_core_model.generate(flattened_chat_history, bad_words_ids=bad_words_ids).to(DEVICE) \
+            if AVOID_BAD_WORDS else loaded_core_model.generate(flattened_chat_history).to(DEVICE)
+    else:
+        bot_response_ids = generator(loaded_core_model, loaded_tokenizer, flattened_chat_history)
     update_chat_history(loaded_tokenizer, bot_response_ids, from_bot=True)
     return loaded_tokenizer.decode(bot_response_ids[0], skip_special_tokens=True)
 
 
 def update_chat_history(tokenizer, new_input_ids, from_bot=False):
     global chat_history
+    if not USE_HISTORY:
+        chat_history = []
     if len(chat_history) != 0 and not from_bot:
         chat_history.append(torch.cat([tokenizer.encode(tokenizer.bos_token, add_special_tokens=False,
                                                         return_tensors='pt').to(DEVICE), new_input_ids], dim=1))
@@ -63,11 +77,15 @@ def update_chat_history(tokenizer, new_input_ids, from_bot=False):
         return new_input_ids
 
 
-def load_saved_instance(path):
+def load_saved_instance(path, load_base_model=False):
     global bad_words_ids
-    model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
+    if load_base_model:
+        model = BlenderbotForConditionalGeneration.from_pretrained(MODEL_NAME, from_tf=False, cache_dir=CACHE_DIR) \
+            .to(DEVICE)
+    else:
+        model = BlenderbotForConditionalGeneration.from_pretrained(path).to(DEVICE)
     tokenizer = BlenderbotTokenizer.from_pretrained(MODEL_NAME, cache_dir=CACHE_DIR)
-    if AVOID_BAD_WORDS:
+    if AVOID_BAD_WORDS and USE_BUILTIN_GENERATOR:
         bad_words_ids = [tokenizer(bad_word, add_prefix_space=True, add_special_tokens=False).input_ids
                          for bad_word in BAD_WORDS]
     return model, tokenizer
