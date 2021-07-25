@@ -232,4 +232,4 @@ def generator(model, tokenizer, input_ids, decoder_algorithm="beam", num_beams=3
         bot_response[-1] = tokenizer.eos_token_id
     if bot_response.shape[0] > max_length:
         bot_response = torch.cat([bot_response[:max_length - 1], torch.tensor([tokenizer.eos_token_id])])
-    return bot_response
+    return bot_response.unsqueeze(dim=0)
