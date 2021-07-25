@@ -17,10 +17,6 @@ class CNNLayerNorm(nn.Module):
 
 
 class ResidualCNN(nn.Module):
-    """Residual CNN inspired by https://arxiv.org/pdf/1603.05027.pdf
-        except with layer norm instead of batch norm
-    """
-
     def __init__(self, in_channels, out_channels, kernel, stride, dropout, n_feats):
         super(ResidualCNN, self).__init__()
 
