@@ -1,4 +1,5 @@
 import logging
+import os
 
 import torch
 
@@ -12,6 +13,10 @@ BOT_NAME = 'Ted'
 TEXT_CHAT_MODE = False
 CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if CUDA else "cpu")
+
+os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
