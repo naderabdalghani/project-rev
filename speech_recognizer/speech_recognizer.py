@@ -48,7 +48,8 @@ def wav_to_text(wav_file_path):
     if loaded_speech_recognizer is None:
         load_speech_recognizer()
     waveform, _ = torchaudio.load(wav_file_path)
-    spectrogram = valid_audio_transforms(waveform).unsqueeze(0)
+    waveform = waveform.to(DEVICE)
+    spectrogram = valid_audio_transforms(waveform).unsqueeze(0).to(DEVICE)
     decoded_predictions, _ = greedy_decode(F.log_softmax(loaded_speech_recognizer(spectrogram), dim=2))
     return decoded_predictions[0]
 
