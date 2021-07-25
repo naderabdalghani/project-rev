@@ -10,9 +10,9 @@ from silence_tensorflow import silence_tensorflow
 from app_config import DEBUG, BOT_NAME, TEXT_CHAT_MODE, CACHE_DIR, INPUT_FILENAME
 from core.core import get_bot_response_as_text, load_core_model
 from keys import FLASK_SECRET_KEY
-from language_model.language_model import correct_user_utterance
+from language_model.language_model import correct_user_utterance, load_language_model
 from speech_recognizer.config import SAMPLING_RATE
-from speech_recognizer.speech_recognizer import wav_to_text
+from speech_recognizer.speech_recognizer import wav_to_text, load_speech_recognizer
 from speech_synthesizer.speech_synthesizer import render_bot_response_as_audio, load_speech_synthesizer
 
 silence_tensorflow()
