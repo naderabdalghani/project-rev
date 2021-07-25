@@ -35,6 +35,7 @@ def initialize():
     load_speech_recognizer()
     load_core_model()
     load_language_model()
+    load_speech_synthesizer()
     return jsonify("Models loaded successfully")
 
 
