@@ -16,7 +16,7 @@ from ray.tune.suggest import BasicVariantGenerator
 from .generator import generator
 from .config import MODEL_NAME, DO_TRAIN, VALID_DATA_SPLIT_RATIO, DO_VALID, BAD_WORDS, SAVED_INSTANCE_PREFIX, \
     HYPER_PARAMS, NUM_SAMPLES, MAX_NUM_STEPS, MIN_NUM_STEPS, DEFAULT_HYPER_PARAMS, HYPER_PARAMS_TUNING, \
-    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING, USE_BUILTIN_GENERATOR
+    AVOID_BAD_WORDS, VALIDATE_WHILE_TRAINING, USE_BUILTIN_GENERATOR, USE_HISTORY
 from exceptions import CoreModelNotTrained
 from app_config import MODELS_DIR, CACHE_DIR, DEVICE, CUDA
 from .preprocessing import ConversationDataset
@@ -62,6 +62,8 @@ def get_bot_response_as_text(user_utterance):
 
 def update_chat_history(tokenizer, new_input_ids, from_bot=False):
     global chat_history
+    if not USE_HISTORY:
+        chat_history = []
     if len(chat_history) != 0 and not from_bot:
         chat_history.append(torch.cat([tokenizer.encode(tokenizer.bos_token, add_special_tokens=False,
                                                         return_tensors='pt').to(DEVICE), new_input_ids], dim=1))
