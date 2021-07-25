@@ -13,7 +13,7 @@ from keys import FLASK_SECRET_KEY
 from language_model.language_model import correct_user_utterance
 from speech_recognizer.config import SAMPLING_RATE
 from speech_recognizer.speech_recognizer import wav_to_text
-from speech_synthesizer.speech_synthesizer import get_bot_response_as_audio, load_speech_synthesizer
+from speech_synthesizer.speech_synthesizer import render_bot_response_as_audio, load_speech_synthesizer
 
 silence_tensorflow()
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -54,6 +54,7 @@ def handle_user_wav():
     logger.info(corrected_user_utterance)
     bot_response = get_bot_response_as_text(corrected_user_utterance)
     logger.info(bot_response)
+    render_bot_response_as_audio(bot_response)
     return jsonify(bot_response)
 
 

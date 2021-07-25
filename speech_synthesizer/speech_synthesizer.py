@@ -17,7 +17,7 @@ synthesizer = None
 embedding = None
 
 
-def get_bot_response_as_audio(bot_response_as_text):
+def render_bot_response_as_audio(bot_response_as_text):
     global synthesizer, embedding
     if synthesizer is None or embedding is None:
         load_speech_synthesizer()
