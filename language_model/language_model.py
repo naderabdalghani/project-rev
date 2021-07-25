@@ -44,8 +44,8 @@ def load_language_model():
 
 
 class LanguageModel:
-    """ The Auto correction model class encapsulates the basics needed to accomplish a
-        simple spell checking algorithm. """
+    """ The Language model class encapsulates the basics needed to accomplish a
+        simple Syntactic and Semantic checking algorithm. """
 
     def __init__(
             self
@@ -76,8 +76,7 @@ class LanguageModel:
         return self.word_frequency
 
     def split_words(self, text):
-        """ Split text into individual `words` using either a simple whitespace
-            regex or the passed in tokenizer
+        """ Split text into individual `words` using either the passed in tokenizer
             Args:
                 text (str): The text to split into individual words
             Returns:
@@ -200,8 +199,8 @@ class LanguageModel:
             pass
 
         if (
-                len(word) > self.word_frequency.longest_word_length + 3  # 2 or 3 ?
-        ):  # magic number to allow removal of up to 2 letters.
+                len(word) > self.word_frequency.longest_word_length + 3
+        ):
             return False
 
         if len(word) == 1:
@@ -247,7 +246,7 @@ class LanguageModel:
 
     def estimate_probability(self, word, previous_n_gram):
         """
-        Estimate the probabilities of a next word using the n-gram counts with k-smoothing
+        Estimate the probability of a next word using the n-gram counts with k-smoothing
 
         Args:
             word: next word
@@ -296,6 +295,8 @@ class LanguageModel:
         return probability
 
     def estimate_sentence_probability(self, sentence):
+        # prepend n-1 start tokens to the sentence
+        # Append end token to the sentence
         sentence_to_check = np.copy(sentence)
         sentence_to_check = np.insert(sentence_to_check, 0, "<s>", axis=0)
         if USE_TRIGRAMS:

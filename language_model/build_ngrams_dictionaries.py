@@ -22,7 +22,7 @@ def split_to_sentences(data):
     """
     sentences = data.split("\n")
 
-    # Additional cleaning (This part is already implemented)
+    # Additional cleaning
     # - Remove leading and trailing spaces from each sentence
     # - Drop sentences if they are empty strings.
     sentences = [s.strip() for s in sentences]
@@ -93,13 +93,13 @@ def count_words(tokenized_sentences):
     word_counts = {}
 
     # Loop through each sentence
-    for sentence in tokenized_sentences:  # complete this line
+    for sentence in tokenized_sentences:
 
         # Go through each token in the sentence
-        for token in sentence:  # complete this line
+        for token in sentence:
 
             # If the token is not in the dictionary yet, set the count to 1
-            if token not in word_counts.keys():  # complete this line
+            if token not in word_counts.keys():
                 word_counts[token] = 1
 
             # If the token is already in the dictionary, increment the count by 1
@@ -129,7 +129,7 @@ def get_words_with_nplus_frequency(tokenized_sentences, count_threshold):
     word_counts = count_words(tokenized_sentences)
 
     # for each word and its count
-    for word, cnt in word_counts.items():  # complete this line
+    for word, cnt in word_counts.items():
 
         # check that the word's count
         # is at least as great as the minimum count
@@ -168,10 +168,10 @@ def replace_oov_words_by_unk(tokenized_sentences, vocabulary, unknown_token="<un
         replaced_sentence = []
 
         # for each token in the sentence
-        for token in sentence:  # complete this line
+        for token in sentence:
 
             # Check if the token is in the closed vocabulary
-            if token in vocabulary:  # complete this line
+            if token in vocabulary:
                 # If so, append the word to the replaced_sentence
                 replaced_sentence.append(token)
             else:
@@ -227,7 +227,7 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
     n_grams = {}
 
     # Go through each sentence in the data
-    for sentence in data:  # complete this line
+    for sentence in data:
 
         # prepend start token n-1 times, and  append <e> one time
         sentence = [start_token] * (n-1) + sentence + [end_token]
@@ -241,14 +241,14 @@ def count_n_grams(data, n, start_token='<s>', end_token='<e>'):
         # to the last index where the end of the n-gram
         # is within the sentence.
 
-        m = len(sentence) if n == 1 else len(sentence) - 1
-        for i in range(m):  # complete this line
+        m = len(sentence) if n == 1 else len(sentence) - n + 1
+        for i in range(m):
 
             # Get the n-gram from i to i+n
             n_gram = sentence[i:i + n]
 
             # check if the n-gram is in the dictionary
-            if n_gram in n_grams.keys():  # complete this line
+            if n_gram in n_grams.keys():
 
                 # Increment the count for this n-gram
                 n_grams[n_gram] += 1

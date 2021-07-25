@@ -79,9 +79,7 @@ class WordFrequency:
     def keys(self):
         """ Iterator over the key of the dictionary
             Yields:
-                str: The next key in the dictionary
-            Note:
-                This is the same as `spellchecker.words()` """
+                str: The next key in the dictionary"""
         for key in self._dictionary.keys():
             yield key
 
