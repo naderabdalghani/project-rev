@@ -2,20 +2,23 @@ import torch
 import torchaudio
 import torch.nn as nn
 
+from app_config import DEVICE
 from .config import FEATURE_USED, SAMPLING_RATE, TEXT_TRANSFORMER
 
 train_audio_transforms = nn.Sequential(
-    torchaudio.transforms.MelSpectrogram(sample_rate=SAMPLING_RATE, n_mels=FEATURE_USED['n_features'])
+    torchaudio.transforms.MelSpectrogram(sample_rate=SAMPLING_RATE, n_mels=FEATURE_USED['n_features']).to(DEVICE)
     if FEATURE_USED['name'] == 'mel-spectrogram' else torchaudio.transforms.MFCC(sample_rate=SAMPLING_RATE,
-                                                                                 n_mfcc=FEATURE_USED['n_features']),
-    torchaudio.transforms.FrequencyMasking(freq_mask_param=30),
-    torchaudio.transforms.TimeMasking(time_mask_param=100)
+                                                                                 n_mfcc=FEATURE_USED['n_features'])
+    .to(DEVICE),
+    torchaudio.transforms.FrequencyMasking(freq_mask_param=30).to(DEVICE),
+    torchaudio.transforms.TimeMasking(time_mask_param=100).to(DEVICE)
 )
 
 valid_audio_transforms = torchaudio.transforms.MelSpectrogram(sample_rate=SAMPLING_RATE,
-                                                              n_mels=FEATURE_USED['n_features'])\
+                                                              n_mels=FEATURE_USED['n_features']).to(DEVICE)\
     if FEATURE_USED['name'] == 'mel-spectrogram' else torchaudio.transforms.MFCC(sample_rate=SAMPLING_RATE,
-                                                                                 n_mfcc=FEATURE_USED['n_features'])
+                                                                                 n_mfcc=FEATURE_USED['n_features'])\
+    .to(DEVICE)
 
 
 def preprocess(data, data_type="train"):
