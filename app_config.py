@@ -10,7 +10,12 @@ INPUT_FILENAME = "input.wav"
 OUTPUT_FILENAME = "output.wav"
 DEBUG = True
 BOT_NAME = 'Ted'
-TEXT_CHAT_MODE = False
+APP_MODES = {
+    "TEXT_CHAT_MODE": 0,
+    "VOICE_CHAT_LITE_MODE": 1,
+    "VOICE_CHAT_MODE": 2
+}
+APP_MODE = APP_MODES["VOICE_CHAT_LITE_MODE"]
 CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if CUDA else "cpu")
 
