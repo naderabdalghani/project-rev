@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 from pydub import AudioSegment
 from silence_tensorflow import silence_tensorflow
 
-from app_config import DEBUG, BOT_NAME, CACHE_DIR, INPUT_FILENAME, APP_MODE, APP_MODES
+from app_config import DEBUG, BOT_NAME, CACHE_DIR, INPUT_FILENAME, APP_MODE
 from core.core import get_bot_response_as_text, load_core_model
 from keys import FLASK_SECRET_KEY
 from language_model.language_model import correct_user_utterance, load_language_model
@@ -25,20 +25,20 @@ socket_io = SocketIO(app)
 
 @app.route('/')
 def sessions():
-    if APP_MODE == APP_MODES["VOICE_CHAT_LITE_MODE"]:
+    if APP_MODE == "VOICE_CHAT_LITE_MODE":
         return render_template('voice_chat_lite_session.html')
-    if APP_MODE == APP_MODES["VOICE_CHAT_MODE"]:
+    if APP_MODE == "VOICE_CHAT_MODE":
         return render_template('voice_chat_session.html')
     return render_template('text_chat_session.html')
 
 
 @app.route('/initialize')
 def initialize():
-    if APP_MODE == APP_MODES["VOICE_CHAT_MODE"]:
+    if APP_MODE == "VOICE_CHAT_MODE":
         load_speech_recognizer()
         load_language_model()
         load_speech_synthesizer()
-    if APP_MODE == APP_MODES["VOICE_CHAT_LITE_MODE"]:
+    if APP_MODE == "VOICE_CHAT_LITE_MODE":
         load_speech_synthesizer()
     load_core_model()
     return jsonify("Models loaded successfully")
