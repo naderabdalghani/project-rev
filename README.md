@@ -69,7 +69,7 @@ After training the model using Mel Spectrogram features on [LibriSpeech ASR corp
 
 - Run #1:
 
-  - Input: "He hoped there would be _**stew**_ for dinner, turnips and carrots**_ and bruised potatoes and fat mutton pieces to be _**ladled**_ out in thick _**peppered**\* \***flour**_, _**fat**\* \***and\_\_\* sauce"
+  - Input: "He hoped there would be _**stew**_ for dinner, turnips and _**carrots**_ and bruised potatoes and fat mutton pieces to be _**ladled**_ out in thick _**peppered**_ _**flour**_, _**fat**_ _**and**_ sauce"
 
   - Prediction: "he hoped there would be _**sto**_ for dinner turnips and _**carats**_ and bruised potatoes and fat mutton pieces to be _**laitled**_ out in thick _**pepperd**_ _**flowr**_ _**fattaind**_ sauce"
 
