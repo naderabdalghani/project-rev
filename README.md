@@ -49,7 +49,7 @@ A simple graphical interface is used to wrap the modules illustrated above into 
 
 ### Demo
 
-<a href="https://drive.google.com/file/d/1sCZlh2Mdv3WStFJyo87aRjUIYbiCZkfz/view" target="_blank" rel="noopener noreferrer">
+<a href="https://youtu.be/1KTwqc8xbto" target="_blank" rel="noopener noreferrer">
   <img src="assets/demo-thumbnail.jpg" alt="project rev demo" width="500">
 </a>
 
